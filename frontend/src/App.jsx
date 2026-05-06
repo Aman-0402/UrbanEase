@@ -1,20 +1,39 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Navbar from './components/layout/Navbar'
 import Landing from './pages/Landing'
+import Login from './pages/Login'
+import Register from './pages/Register'
+import useAuthStore from './store/authStore'
 
-// Placeholder pages (built incrementally)
-const Login = () => <div className="min-h-screen flex items-center justify-center text-2xl font-bold text-gray-700">Login Page — Coming Soon</div>
-const Register = () => <div className="min-h-screen flex items-center justify-center text-2xl font-bold text-gray-700">Register Page — Coming Soon</div>
-const NotFound = () => <div className="min-h-screen flex items-center justify-center text-2xl font-bold text-gray-700">404 — Page Not Found</div>
+const NotFound = () => (
+  <div className="min-h-screen bg-gradient-to-br from-slate-900 via-violet-950 to-indigo-950 flex items-center justify-center">
+    <div className="text-center text-white">
+      <div className="text-8xl font-black mb-4 text-white/20">404</div>
+      <h1 className="text-2xl font-bold mb-2">Page not found</h1>
+      <p className="text-white/50 mb-8">The page you're looking for doesn't exist.</p>
+      <a href="/" className="px-6 py-3 bg-violet-600 rounded-xl font-semibold hover:bg-violet-700 transition-colors">
+        Go home
+      </a>
+    </div>
+  </div>
+)
+
+function GuestRoute({ children }) {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  return isAuthenticated ? <Navigate to="/" replace /> : children
+}
 
 function App() {
   return (
     <BrowserRouter>
-      <Navbar />
       <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        {/* Landing has its own full-page layout with Navbar inside */}
+        <Route path="/" element={<><Navbar /><Landing /></>} />
+
+        {/* Auth pages — no navbar */}
+        <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
+        <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
+
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
