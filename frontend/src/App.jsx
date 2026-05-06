@@ -10,6 +10,7 @@ import Services from './pages/Services'
 import Providers from './pages/Providers'
 import BookingFlow from './pages/BookingFlow'
 import MyBookings from './pages/MyBookings'
+import ProviderProfile from './pages/ProviderProfile'
 import useAuthStore from './store/authStore'
 
 const NotFound = () => (
@@ -58,6 +59,7 @@ function App() {
         <Route path="/" element={<><Navbar /><Landing /></>} />
         <Route path="/services" element={<Services />} />
         <Route path="/services/:slug/providers" element={<Providers />} />
+        <Route path="/providers/:id" element={<ProviderProfile />} />
 
         {/* Auth */}
         <Route path="/login"    element={<GuestRoute><Login /></GuestRoute>} />

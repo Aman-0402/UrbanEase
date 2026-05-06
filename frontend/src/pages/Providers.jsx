@@ -173,6 +173,12 @@ export default function Providers() {
                       </div>
                       <div style={{ fontSize:'11px', color:'#94a3b8' }}>per hour</div>
                     </div>
+                    <Link to={`/providers/${p.id}`}
+                      style={{ padding:'11px 18px', border:'2px solid #e5e7eb', borderRadius:'13px', color:'#374151', fontWeight:'700', fontSize:'13px', textDecoration:'none', transition:'all 0.2s', whiteSpace:'nowrap' }}
+                      onMouseOver={e=>{e.currentTarget.style.borderColor='#7c3aed';e.currentTarget.style.color='#7c3aed'}}
+                      onMouseOut={e=>{e.currentTarget.style.borderColor='#e5e7eb';e.currentTarget.style.color='#374151'}}>
+                      View Profile
+                    </Link>
                     <button onClick={() => handleBook(p.id)} disabled={!p.is_available}
                       style={{ padding:'12px 28px', background: p.is_available ? 'linear-gradient(135deg,#7c3aed,#4338ca)' : '#e5e7eb', color: p.is_available ? 'white' : '#9ca3af', border:'none', borderRadius:'14px', fontWeight:'700', fontSize:'14px', cursor: p.is_available ? 'pointer' : 'not-allowed', boxShadow: p.is_available ? '0 4px 14px rgba(124,58,237,0.35)' : 'none', transition:'all 0.2s', whiteSpace:'nowrap' }}
                       onMouseOver={e=>{ if(p.is_available) e.currentTarget.style.transform='translateY(-2px)' }}
