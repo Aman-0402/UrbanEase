@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Navbar from './components/layout/Navbar'
 import Landing from './pages/Landing'
@@ -12,6 +13,7 @@ import BookingFlow from './pages/BookingFlow'
 import MyBookings from './pages/MyBookings'
 import ProviderProfile from './pages/ProviderProfile'
 import useAuthStore from './store/authStore'
+import { getMe } from './api/auth'
 
 const NotFound = () => (
   <div style={{ minHeight:'100vh', background:'linear-gradient(135deg,#1e1b4b,#4c1d95)', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'system-ui,sans-serif' }}>
@@ -52,6 +54,14 @@ function AdminRoute({ children }) {
 }
 
 function App() {
+  const { isAuthenticated, user, setUser, logout } = useAuthStore()
+
+  useEffect(() => {
+    if (isAuthenticated && !user) {
+      getMe().then(r => setUser(r.data)).catch(() => logout())
+    }
+  }, [])
+
   return (
     <BrowserRouter>
       <Routes>
