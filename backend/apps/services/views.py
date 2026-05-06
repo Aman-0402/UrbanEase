@@ -21,7 +21,7 @@ class ServiceListView(generics.ListAPIView):
     serializer_class = ServiceSerializer
     permission_classes = (permissions.AllowAny,)
     filter_backends = (DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter)
-    filterset_fields = ('category__slug',)
+    filterset_fields = ('category__slug', 'category')
     search_fields = ('name', 'description', 'category__name')
     ordering_fields = ('base_price', 'name')
 
@@ -35,7 +35,6 @@ class ServiceDetailView(generics.RetrieveAPIView):
 
 class ProviderListView(generics.ListAPIView):
     queryset = (ProviderProfile.objects
-                .filter(is_verified=True)
                 .select_related('user')
                 .prefetch_related('services'))
     serializer_class = ProviderListSerializer

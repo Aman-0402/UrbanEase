@@ -4,10 +4,10 @@ import { Zap, Search, Calendar, Star, Clock, ArrowRight, LogOut } from 'lucide-r
 import useAuthStore from '../store/authStore'
 
 const quickLinks = [
-  { icon:Search,   label:'Browse Services',  desc:'Find the service you need',   to:'/#services',   color:'#eff6ff', ic:'#3b82f6' },
-  { icon:Calendar, label:'My Bookings',       desc:'View your booking history',   to:'/bookings',    color:'#f0fdf4', ic:'#22c55e' },
-  { icon:Star,     label:'My Reviews',        desc:'Reviews you have left',       to:'/reviews',     color:'#fefce8', ic:'#eab308' },
-  { icon:Clock,    label:'Upcoming',          desc:'Your scheduled services',     to:'/bookings',    color:'#faf5ff', ic:'#a855f7' },
+  { icon:Search,   label:'Browse Services',  desc:'Find the service you need',   to:'/services',  color:'#eff6ff', ic:'#3b82f6' },
+  { icon:Calendar, label:'My Bookings',       desc:'View your booking history',   to:'/bookings',  color:'#f0fdf4', ic:'#22c55e' },
+  { icon:Star,     label:'My Reviews',        desc:'Reviews you have left',       to:'/bookings',  color:'#fefce8', ic:'#eab308' },
+  { icon:Clock,    label:'Upcoming',          desc:'Your scheduled services',     to:'/bookings',  color:'#faf5ff', ic:'#a855f7' },
 ]
 
 export default function Dashboard() {
@@ -57,7 +57,7 @@ export default function Dashboard() {
             <p style={{ color:'rgba(255,255,255,0.65)', fontSize:'15px', marginBottom:'28px' }}>
               {role === 'provider' ? 'Manage your services and bookings from here.' : 'What service do you need today?'}
             </p>
-            <Link to="/#services" style={{ display:'inline-flex', alignItems:'center', gap:'8px', padding:'12px 24px', background:'white', color:'#7c3aed', fontWeight:'700', fontSize:'14px', borderRadius:'12px', textDecoration:'none', boxShadow:'0 4px 16px rgba(0,0,0,0.15)', transition:'all 0.2s' }}
+            <Link to="/services" style={{ display:'inline-flex', alignItems:'center', gap:'8px', padding:'12px 24px', background:'white', color:'#7c3aed', fontWeight:'700', fontSize:'14px', borderRadius:'12px', textDecoration:'none', boxShadow:'0 4px 16px rgba(0,0,0,0.15)', transition:'all 0.2s' }}
               onMouseOver={e=>e.currentTarget.style.transform='translateY(-1px)'}
               onMouseOut={e=>e.currentTarget.style.transform=''}>
               Browse Services <ArrowRight size={16}/>
@@ -93,7 +93,7 @@ export default function Dashboard() {
           <p style={{ color:'#64748b', fontSize:'14px', marginBottom:'24px', lineHeight:1.7 }}>
             You haven't booked any services yet.<br/>Browse our services and book your first one today.
           </p>
-          <Link to="/#services" style={{ display:'inline-flex', alignItems:'center', gap:'8px', padding:'12px 28px', background:'linear-gradient(135deg,#7c3aed,#4338ca)', color:'white', fontWeight:'700', fontSize:'14px', borderRadius:'12px', textDecoration:'none', boxShadow:'0 4px 16px rgba(124,58,237,0.3)' }}>
+          <Link to="/services" style={{ display:'inline-flex', alignItems:'center', gap:'8px', padding:'12px 28px', background:'linear-gradient(135deg,#7c3aed,#4338ca)', color:'white', fontWeight:'700', fontSize:'14px', borderRadius:'12px', textDecoration:'none', boxShadow:'0 4px 16px rgba(124,58,237,0.3)' }}>
             Find a Service <ArrowRight size={16}/>
           </Link>
         </motion.div>

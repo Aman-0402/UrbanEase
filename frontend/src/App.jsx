@@ -4,17 +4,19 @@ import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
+import Services from './pages/Services'
+import Providers from './pages/Providers'
+import BookingFlow from './pages/BookingFlow'
+import MyBookings from './pages/MyBookings'
 import useAuthStore from './store/authStore'
 
 const NotFound = () => (
-  <div className="min-h-screen bg-gradient-to-br from-slate-900 via-violet-950 to-indigo-950 flex items-center justify-center">
-    <div className="text-center text-white">
-      <div className="text-8xl font-black mb-4 text-white/20">404</div>
-      <h1 className="text-2xl font-bold mb-2">Page not found</h1>
-      <p className="text-white/50 mb-8">The page you're looking for doesn't exist.</p>
-      <a href="/" className="px-6 py-3 bg-violet-600 rounded-xl font-semibold hover:bg-violet-700 transition-colors">
-        Go home
-      </a>
+  <div style={{ minHeight:'100vh', background:'linear-gradient(135deg,#1e1b4b,#4c1d95)', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'system-ui,sans-serif' }}>
+    <div style={{ textAlign:'center', color:'white' }}>
+      <div style={{ fontSize:'96px', fontWeight:'900', color:'rgba(255,255,255,0.15)', lineHeight:1 }}>404</div>
+      <h1 style={{ fontSize:'22px', fontWeight:'700', marginBottom:'8px' }}>Page not found</h1>
+      <p style={{ color:'rgba(255,255,255,0.5)', marginBottom:'28px' }}>The page you're looking for doesn't exist.</p>
+      <a href="/" style={{ padding:'12px 28px', background:'#7c3aed', color:'white', borderRadius:'12px', fontWeight:'700', textDecoration:'none' }}>Go home</a>
     </div>
   </div>
 )
@@ -33,15 +35,19 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Landing has its own full-page layout with Navbar inside */}
+        {/* Public */}
         <Route path="/" element={<><Navbar /><Landing /></>} />
+        <Route path="/services" element={<Services />} />
+        <Route path="/services/:slug/providers" element={<Providers />} />
 
-        {/* Auth pages — no navbar */}
-        <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
+        {/* Auth */}
+        <Route path="/login"    element={<GuestRoute><Login /></GuestRoute>} />
         <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
 
         {/* Protected */}
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+        <Route path="/bookings"  element={<PrivateRoute><MyBookings /></PrivateRoute>} />
+        <Route path="/book/:providerId" element={<PrivateRoute><BookingFlow /></PrivateRoute>} />
 
         <Route path="*" element={<NotFound />} />
       </Routes>
