@@ -22,10 +22,12 @@ THIRD_PARTY_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
+    'django_filters',
 ]
 
 LOCAL_APPS = [
     'apps.users',
+    'apps.services',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -76,6 +78,7 @@ DATABASES = {
         'PORT': config('DB_PORT', default='3306'),
         'OPTIONS': {
             'sql_mode': 'STRICT_TRANS_TABLES',
+            'charset': 'utf8mb4',
         },
     }
 }
@@ -102,6 +105,9 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
+    'DEFAULT_FILTER_BACKENDS': (
+        'django_filters.rest_framework.DjangoFilterBackend',
+    ),
 }
 
 from datetime import timedelta

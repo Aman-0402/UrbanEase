@@ -13,6 +13,9 @@ urlpatterns = [
 
     # Users
     path('api/users/', include('apps.users.urls')),
+
+    # Services
+    path('api/', include('apps.services.urls')),
 ]
 
 if settings.DEBUG:
