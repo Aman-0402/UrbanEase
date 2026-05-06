@@ -8,35 +8,93 @@ import useAuthStore from '../store/authStore'
 
 const passwordRules = [
   { label: 'At least 8 characters', test: (v) => v.length >= 8 },
-  { label: 'One uppercase letter', test: (v) => /[A-Z]/.test(v) },
-  { label: 'One number', test: (v) => /\d/.test(v) },
+  { label: 'One uppercase letter',  test: (v) => /[A-Z]/.test(v) },
+  { label: 'One number',            test: (v) => /\d/.test(v) },
 ]
+
+const s = {
+  page:       { display:'flex', minHeight:'100vh', fontFamily:'system-ui,-apple-system,sans-serif' },
+  left:       { width:'42%', background:'linear-gradient(145deg,#7c3aed 0%,#6d28d9 55%,#4338ca 100%)', padding:'60px 56px', display:'flex', flexDirection:'column', justifyContent:'space-between', position:'relative', overflow:'hidden', flexShrink:0 },
+  blob1:      { position:'absolute', top:'-80px', left:'-80px', width:'300px', height:'300px', background:'rgba(255,255,255,0.06)', borderRadius:'50%' },
+  blob2:      { position:'absolute', bottom:'-60px', right:'-60px', width:'260px', height:'260px', background:'rgba(255,255,255,0.06)', borderRadius:'50%' },
+  logo:       { display:'flex', alignItems:'center', gap:'12px', position:'relative', zIndex:1 },
+  logoBox:    { width:'44px', height:'44px', background:'rgba(255,255,255,0.2)', borderRadius:'12px', display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(8px)' },
+  logoText:   { color:'white', fontSize:'22px', fontWeight:'800', letterSpacing:'-0.5px' },
+  middle:     { position:'relative', zIndex:1 },
+  h2:         { color:'white', fontSize:'38px', fontWeight:'900', lineHeight:'1.2', marginBottom:'14px', letterSpacing:'-0.8px' },
+  accent:     { color:'#c4b5fd' },
+  sub:        { color:'#ddd6fe', fontSize:'15px', lineHeight:'1.7', marginBottom:'32px', maxWidth:'320px' },
+  checkRow:   { display:'flex', alignItems:'center', gap:'12px', marginBottom:'14px' },
+  checkText:  { color:'#ede9fe', fontSize:'14px', fontWeight:'500' },
+  stats:      { display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'12px', paddingTop:'28px', borderTop:'1px solid rgba(255,255,255,0.2)', position:'relative', zIndex:1 },
+  statVal:    { color:'white', fontSize:'26px', fontWeight:'900', textAlign:'center' },
+  statLbl:    { color:'#c4b5fd', fontSize:'12px', textAlign:'center', marginTop:'2px' },
+  right:      { flex:1, background:'#ffffff', display:'flex', alignItems:'center', justifyContent:'center', padding:'40px 32px', overflowY:'auto' },
+  form:       { width:'100%', maxWidth:'480px' },
+  heading:    { fontSize:'28px', fontWeight:'900', color:'#111827', marginBottom:'6px', letterSpacing:'-0.4px' },
+  subheading: { color:'#6b7280', fontSize:'15px', marginBottom:'28px' },
+  roleWrap:   { display:'flex', gap:'0', marginBottom:'28px', background:'#f3f4f6', borderRadius:'14px', padding:'5px' },
+  roleBtn:    (active) => ({
+    flex:1, padding:'12px 16px', borderRadius:'10px', border:'none', cursor:'pointer', fontSize:'14px', fontWeight:'600',
+    transition:'all 0.2s',
+    background: active ? '#ffffff' : 'transparent',
+    color: active ? '#7c3aed' : '#6b7280',
+    boxShadow: active ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
+  }),
+  error:      { display:'flex', alignItems:'center', gap:'10px', background:'#fef2f2', border:'1px solid #fecaca', color:'#b91c1c', borderRadius:'12px', padding:'13px 16px', marginBottom:'20px', fontSize:'13px' },
+  formGrid:   { display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px', marginBottom:'16px' },
+  field:      { marginBottom:'16px' },
+  label:      { display:'block', fontSize:'13px', fontWeight:'600', color:'#374151', marginBottom:'7px' },
+  labelOpt:   { color:'#9ca3af', fontWeight:'400' },
+  input:      (err) => ({
+    width:'100%', padding:'13px 16px', borderRadius:'11px', fontSize:'14px', outline:'none', boxSizing:'border-box', transition:'all 0.2s',
+    border: err ? '2px solid #f87171' : '2px solid #e5e7eb',
+    background: err ? '#fef2f2' : '#f9fafb', color:'#111827',
+  }),
+  inputPr:    (err) => ({ ...({width:'100%', padding:'13px 48px 13px 16px', borderRadius:'11px', fontSize:'14px', outline:'none', boxSizing:'border-box', transition:'all 0.2s', border: err ? '2px solid #f87171' : '2px solid #e5e7eb', background: err ? '#fef2f2' : '#f9fafb', color:'#111827'}) }),
+  errMsg:     { color:'#ef4444', fontSize:'12px', marginTop:'5px', display:'flex', alignItems:'center', gap:'4px' },
+  eyeBtn:     { position:'absolute', right:'13px', top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'#9ca3af', padding:'4px', display:'flex' },
+  pwRules:    { display:'flex', gap:'16px', flexWrap:'wrap', marginTop:'8px' },
+  pwRule:     (ok) => ({ display:'flex', alignItems:'center', gap:'4px', fontSize:'12px', color: ok ? '#7c3aed' : '#9ca3af' }),
+  bar:        (ok) => ({ height:'3px', flex:1, borderRadius:'4px', background: ok ? '#7c3aed' : '#e5e7eb', transition:'background 0.3s' }),
+  termsRow:   { display:'flex', alignItems:'flex-start', gap:'10px', marginBottom:'20px' },
+  termsText:  { color:'#6b7280', fontSize:'13px', lineHeight:'1.5' },
+  termsLink:  { color:'#7c3aed', fontWeight:'600', textDecoration:'none' },
+  submit:     { width:'100%', padding:'14px', background:'linear-gradient(135deg,#7c3aed,#4338ca)', color:'white', fontWeight:'700', fontSize:'15px', border:'none', borderRadius:'12px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px', boxShadow:'0 4px 18px rgba(124,58,237,0.3)', transition:'all 0.2s' },
+  bottom:     { textAlign:'center', color:'#6b7280', fontSize:'14px', marginTop:'24px' },
+  link:       { color:'#7c3aed', fontWeight:'700', textDecoration:'none' },
+  spinner:    { width:'17px', height:'17px', border:'2px solid rgba(255,255,255,0.3)', borderTopColor:'white', borderRadius:'50%', animation:'spin 0.7s linear infinite', display:'inline-block' },
+}
 
 export default function Register() {
   const navigate = useNavigate()
   const login = useAuthStore((s) => s.login)
-  const [showPassword, setShowPassword] = useState(false)
+  const [showPw, setShowPw]         = useState(false)
+  const [showCpw, setShowCpw]       = useState(false)
   const [serverError, setServerError] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [selectedRole, setSelectedRole] = useState('customer')
+  const [loading, setLoading]       = useState(false)
+  const [role, setRole]             = useState('customer')
 
   const { register, handleSubmit, watch, formState: { errors } } = useForm()
   const password = watch('password', '')
+
+  const focusStyle  = { borderColor:'#7c3aed', background:'#fff' }
+  const blurStyle   = (err) => ({ borderColor: err ? '#f87171' : '#e5e7eb', background: err ? '#fef2f2' : '#f9fafb' })
 
   const onSubmit = async (data) => {
     setServerError('')
     setLoading(true)
     try {
-      await registerUser({ ...data, role: selectedRole })
+      await registerUser({ ...data, role })
       const { data: tokens } = await loginUser(data.phone, data.password)
-      const { data: user } = await getMe()
+      const { data: user }   = await getMe()
       login(tokens, user)
       navigate('/')
     } catch (err) {
       const e = err.response?.data
       if (e) {
         const key = Object.keys(e)[0]
-        setServerError(`${key}: ${e[key][0]}`)
+        setServerError(key + ': ' + e[key][0])
       } else {
         setServerError('Something went wrong. Please try again.')
       }
@@ -45,263 +103,170 @@ export default function Register() {
     }
   }
 
+  const pwStrength = passwordRules.filter(r => r.test(password)).length
+
   return (
-    <div className="min-h-screen flex">
+    <div style={s.page}>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}} *{box-sizing:border-box;margin:0;padding:0} @media(max-width:900px){.reg-left{display:none!important}}`}</style>
 
-      {/* ── Left branding panel ── */}
-      <div className="hidden lg:flex lg:w-5/12 bg-gradient-to-br from-violet-600 via-violet-700 to-indigo-800 relative overflow-hidden flex-col justify-center p-16">
-        <div className="absolute -top-32 -left-32 w-96 h-96 bg-white/5 rounded-full" />
-        <div className="absolute -bottom-20 -right-20 w-80 h-80 bg-white/5 rounded-full" />
+      {/* ── Left panel ── */}
+      <div style={s.left} className="reg-left">
+        <div style={s.blob1} /><div style={s.blob2} />
 
-        <motion.div
-          initial={{ opacity: 0, x: -30 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6 }}
-          className="relative z-10 flex items-center gap-3 mb-16"
-        >
-          <div className="w-11 h-11 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
-            <Zap size={22} className="text-white" />
-          </div>
-          <span className="text-white text-2xl font-bold">UrbanEase</span>
+        <motion.div style={s.logo} initial={{opacity:0,x:-20}} animate={{opacity:1,x:0}} transition={{duration:0.5}}>
+          <div style={s.logoBox}><Zap size={22} color="white" /></div>
+          <span style={s.logoText}>UrbanEase</span>
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.1 }}
-          className="relative z-10"
-        >
-          <h2 className="text-4xl font-extrabold text-white leading-tight mb-4">
-            Join thousands of<br />
-            <span className="text-violet-200">happy customers</span>
-          </h2>
-          <p className="text-violet-200 text-base leading-relaxed mb-10">
-            Create a free account and book your first home service in under 2 minutes.
-          </p>
-          {[
-            'Free to sign up — no credit card',
-            'Instant booking confirmation',
-            'Background-verified professionals',
-            '30-day satisfaction guarantee',
-          ].map((item) => (
-            <div key={item} className="flex items-center gap-3 mb-4">
-              <CheckCircle size={18} className="text-green-300 shrink-0" />
-              <span className="text-violet-100 text-sm font-medium">{item}</span>
+        <motion.div style={s.middle} initial={{opacity:0,y:30}} animate={{opacity:1,y:0}} transition={{duration:0.6,delay:0.1}}>
+          <h2 style={s.h2}>Join thousands of<br /><span style={s.accent}>happy customers</span></h2>
+          <p style={s.sub}>Create a free account and book your first home service in under 2 minutes.</p>
+          {['Free to sign up — no credit card','Instant booking confirmation','Background-verified professionals','30-day satisfaction guarantee'].map(item => (
+            <div key={item} style={s.checkRow}>
+              <CheckCircle size={17} color="#86efac" style={{flexShrink:0}} />
+              <span style={s.checkText}>{item}</span>
             </div>
           ))}
         </motion.div>
 
-        {/* Stats row */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.7, delay: 0.3 }}
-          className="relative z-10 grid grid-cols-3 gap-4 mt-12 pt-10 border-t border-white/20"
-        >
-          {[['50K+', 'Customers'], ['8K+', 'Providers'], ['98%', 'Satisfaction']].map(([val, lbl]) => (
-            <div key={lbl} className="text-center">
-              <div className="text-2xl font-extrabold text-white">{val}</div>
-              <div className="text-violet-300 text-xs mt-1">{lbl}</div>
+        <motion.div style={s.stats} initial={{opacity:0}} animate={{opacity:1}} transition={{duration:0.6,delay:0.25}}>
+          {[['50K+','Customers'],['8K+','Providers'],['98%','Satisfaction']].map(([val,lbl]) => (
+            <div key={lbl}>
+              <div style={s.statVal}>{val}</div>
+              <div style={s.statLbl}>{lbl}</div>
             </div>
           ))}
         </motion.div>
       </div>
 
       {/* ── Right form panel ── */}
-      <div className="w-full lg:w-7/12 bg-white flex items-center justify-center px-6 py-12 overflow-y-auto">
-        <motion.div
-          initial={{ opacity: 0, x: 30 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6 }}
-          className="w-full max-w-lg"
-        >
-          {/* Mobile logo */}
-          <div className="flex lg:hidden items-center gap-2 mb-10">
-            <div className="w-9 h-9 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-xl flex items-center justify-center">
-              <Zap size={18} className="text-white" />
-            </div>
-            <span className="text-xl font-bold text-gray-900">UrbanEase</span>
-          </div>
+      <div style={s.right}>
+        <motion.div style={s.form} initial={{opacity:0,x:30}} animate={{opacity:1,x:0}} transition={{duration:0.55}}>
 
-          <div className="mb-8">
-            <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Create your account</h1>
-            <p className="text-gray-500">Get started — it's completely free</p>
-          </div>
+          <h1 style={s.heading}>Create your account</h1>
+          <p style={s.subheading}>Get started — it's completely free</p>
 
           {/* Role toggle */}
-          <div className="flex gap-3 mb-8 p-1.5 bg-gray-100 rounded-2xl">
-            {[
-              { value: 'customer', label: '🏠  I need services' },
-              { value: 'provider', label: '🔧  I offer services' },
-            ].map(({ value, label }) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setSelectedRole(value)}
-                className={`flex-1 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                  selectedRole === value
-                    ? 'bg-white text-violet-700 shadow-md shadow-violet-100'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+          <div style={s.roleWrap}>
+            <button type="button" style={s.roleBtn(role==='customer')} onClick={()=>setRole('customer')}>
+              🏠&nbsp; I need services
+            </button>
+            <button type="button" style={s.roleBtn(role==='provider')} onClick={()=>setRole('provider')}>
+              🔧&nbsp; I offer services
+            </button>
           </div>
 
-          {/* Error */}
+          {/* Server error */}
           {serverError && (
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3.5 mb-6 text-sm"
-            >
-              <AlertCircle size={17} className="shrink-0 text-red-500" />
-              {serverError}
+            <motion.div style={s.error} initial={{opacity:0,y:-8}} animate={{opacity:1,y:0}}>
+              <AlertCircle size={16} color="#ef4444" style={{flexShrink:0}} />{serverError}
             </motion.div>
           )}
 
-          <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
+          <form onSubmit={handleSubmit(onSubmit)} noValidate>
 
-            {/* Name + Phone row */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Name + Phone */}
+            <div style={s.formGrid}>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
-                <input
-                  type="text"
-                  placeholder="Aman Singh"
-                  {...register('full_name', { required: 'Required' })}
-                  className={`w-full px-4 py-3.5 rounded-xl border-2 text-gray-900 placeholder-gray-400 text-sm outline-none transition-all duration-200
-                    ${errors.full_name ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50 focus:border-violet-500 focus:bg-white'}`}
-                />
-                {errors.full_name && <p className="text-red-500 text-xs mt-1">{errors.full_name.message}</p>}
+                <label style={s.label}>Full Name</label>
+                <input type="text" placeholder="Aman Singh"
+                  {...register('full_name',{required:'Required'})}
+                  style={s.input(errors.full_name)}
+                  onFocus={e=>Object.assign(e.target.style,focusStyle)}
+                  onBlur={e=>Object.assign(e.target.style,blurStyle(errors.full_name))} />
+                {errors.full_name && <p style={s.errMsg}><AlertCircle size={11}/>{errors.full_name.message}</p>}
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label>
-                <input
-                  type="tel"
-                  placeholder="9999999999"
-                  {...register('phone', {
-                    required: 'Required',
-                    pattern: { value: /^[6-9]\d{9}$/, message: 'Invalid number' },
-                  })}
-                  className={`w-full px-4 py-3.5 rounded-xl border-2 text-gray-900 placeholder-gray-400 text-sm outline-none transition-all duration-200
-                    ${errors.phone ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50 focus:border-violet-500 focus:bg-white'}`}
-                />
-                {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
+                <label style={s.label}>Phone Number</label>
+                <input type="tel" placeholder="9876543210"
+                  {...register('phone',{required:'Required',pattern:{value:/^[6-9]\d{9}$/,message:'Invalid number'}})}
+                  style={s.input(errors.phone)}
+                  onFocus={e=>Object.assign(e.target.style,focusStyle)}
+                  onBlur={e=>Object.assign(e.target.style,blurStyle(errors.phone))} />
+                {errors.phone && <p style={s.errMsg}><AlertCircle size={11}/>{errors.phone.message}</p>}
               </div>
             </div>
 
             {/* Email */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Email <span className="text-gray-400 font-normal">(optional)</span>
-              </label>
-              <input
-                type="email"
-                placeholder="you@example.com"
-                {...register('email', {
-                  pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Invalid email' },
-                })}
-                className={`w-full px-4 py-3.5 rounded-xl border-2 text-gray-900 placeholder-gray-400 text-sm outline-none transition-all duration-200
-                  ${errors.email ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50 focus:border-violet-500 focus:bg-white'}`}
-              />
-              {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
+            <div style={s.field}>
+              <label style={s.label}>Email <span style={s.labelOpt}>(optional)</span></label>
+              <input type="email" placeholder="you@example.com"
+                {...register('email',{pattern:{value:/^[^\s@]+@[^\s@]+\.[^\s@]+$/,message:'Invalid email'}})}
+                style={s.input(errors.email)}
+                onFocus={e=>Object.assign(e.target.style,focusStyle)}
+                onBlur={e=>Object.assign(e.target.style,blurStyle(errors.email))} />
+              {errors.email && <p style={s.errMsg}><AlertCircle size={11}/>{errors.email.message}</p>}
             </div>
 
             {/* Password */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Create a strong password"
-                  {...register('password', {
-                    required: 'Password is required',
-                    minLength: { value: 8, message: 'Min 8 characters' },
-                  })}
-                  className={`w-full px-4 py-3.5 pr-12 rounded-xl border-2 text-gray-900 placeholder-gray-400 text-sm outline-none transition-all duration-200
-                    ${errors.password ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50 focus:border-violet-500 focus:bg-white'}`}
-                />
-                <button type="button" onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            <div style={s.field}>
+              <label style={s.label}>Password</label>
+              <div style={{position:'relative'}}>
+                <input type={showPw?'text':'password'} placeholder="Create a strong password"
+                  {...register('password',{required:'Required',minLength:{value:8,message:'Min 8 characters'}})}
+                  style={s.inputPr(errors.password)}
+                  onFocus={e=>Object.assign(e.target.style,focusStyle)}
+                  onBlur={e=>Object.assign(e.target.style,blurStyle(errors.password))} />
+                <button type="button" style={s.eyeBtn} onClick={()=>setShowPw(!showPw)}>
+                  {showPw ? <EyeOff size={17}/> : <Eye size={17}/>}
                 </button>
               </div>
-
-              {/* Strength meter */}
+              {/* Strength bar */}
               {password && (
-                <div className="mt-3 flex gap-2">
-                  {passwordRules.map(({ test }, i) => (
-                    <div key={i} className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${test(password) ? 'bg-violet-500' : 'bg-gray-200'}`} />
-                  ))}
-                </div>
+                <>
+                  <div style={{display:'flex',gap:'6px',marginTop:'8px'}}>
+                    {passwordRules.map((_,i)=><div key={i} style={s.bar(i<pwStrength)} />)}
+                  </div>
+                  <div style={s.pwRules}>
+                    {passwordRules.map(({label,test})=>(
+                      <span key={label} style={s.pwRule(test(password))}>
+                        <CheckCircle size={11}/>{label}
+                      </span>
+                    ))}
+                  </div>
+                </>
               )}
-              {password && (
-                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-                  {passwordRules.map(({ label, test }) => (
-                    <span key={label} className={`text-xs flex items-center gap-1 ${test(password) ? 'text-violet-600' : 'text-gray-400'}`}>
-                      <CheckCircle size={11} /> {label}
-                    </span>
-                  ))}
-                </div>
-              )}
+              {errors.password && <p style={s.errMsg}><AlertCircle size={11}/>{errors.password.message}</p>}
             </div>
 
             {/* Confirm password */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Confirm Password</label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Repeat password"
-                  {...register('confirm_password', {
-                    required: 'Please confirm password',
-                    validate: (v) => v === password || 'Passwords do not match',
-                  })}
-                  className={`w-full px-4 py-3.5 pr-12 rounded-xl border-2 text-gray-900 placeholder-gray-400 text-sm outline-none transition-all duration-200
-                    ${errors.confirm_password ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50 focus:border-violet-500 focus:bg-white'}`}
-                />
+            <div style={s.field}>
+              <label style={s.label}>Confirm Password</label>
+              <div style={{position:'relative'}}>
+                <input type={showCpw?'text':'password'} placeholder="Repeat your password"
+                  {...register('confirm_password',{required:'Required',validate:v=>v===password||'Passwords do not match'})}
+                  style={s.inputPr(errors.confirm_password)}
+                  onFocus={e=>Object.assign(e.target.style,focusStyle)}
+                  onBlur={e=>Object.assign(e.target.style,blurStyle(errors.confirm_password))} />
+                <button type="button" style={s.eyeBtn} onClick={()=>setShowCpw(!showCpw)}>
+                  {showCpw ? <EyeOff size={17}/> : <Eye size={17}/>}
+                </button>
               </div>
-              {errors.confirm_password && (
-                <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                  <AlertCircle size={12} /> {errors.confirm_password.message}
-                </p>
-              )}
+              {errors.confirm_password && <p style={s.errMsg}><AlertCircle size={11}/>{errors.confirm_password.message}</p>}
             </div>
 
             {/* Terms */}
-            <div className="flex items-start gap-3">
+            <div style={s.termsRow}>
               <input type="checkbox" id="terms"
-                {...register('terms', { required: true })}
-                className="mt-0.5 w-4 h-4 accent-violet-600 cursor-pointer"
-              />
-              <label htmlFor="terms" className="text-gray-500 text-sm cursor-pointer">
-                I agree to the{' '}
-                <a href="#" className="text-violet-600 font-medium hover:underline">Terms of Service</a>
-                {' '}and{' '}
-                <a href="#" className="text-violet-600 font-medium hover:underline">Privacy Policy</a>
+                {...register('terms',{required:true})}
+                style={{marginTop:'2px',width:'16px',height:'16px',accentColor:'#7c3aed',flexShrink:0,cursor:'pointer'}} />
+              <label htmlFor="terms" style={s.termsText}>
+                I agree to the <a href="#" style={s.termsLink}>Terms of Service</a> and <a href="#" style={s.termsLink}>Privacy Policy</a>
               </label>
             </div>
 
-            <motion.button
-              type="submit"
-              disabled={loading}
-              whileHover={{ scale: loading ? 1 : 1.01 }}
-              whileTap={{ scale: loading ? 1 : 0.99 }}
-              className="w-full flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold rounded-xl text-sm hover:shadow-lg hover:shadow-violet-200 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Creating account...</>
-              ) : (
-                <>Create account <ArrowRight size={17} /></>
-              )}
+            {/* Submit */}
+            <motion.button type="submit" disabled={loading}
+              whileHover={{scale:loading?1:1.01}} whileTap={{scale:loading?1:0.99}}
+              style={{...s.submit, opacity:loading?0.7:1, cursor:loading?'not-allowed':'pointer'}}>
+              {loading
+                ? <><span style={s.spinner}/>Creating account...</>
+                : <>Create account <ArrowRight size={17}/></>}
             </motion.button>
           </form>
 
-          <p className="text-center text-gray-500 text-sm mt-8">
-            Already have an account?{' '}
-            <Link to="/login" className="text-violet-600 font-semibold hover:text-violet-700">Log in</Link>
+          <p style={s.bottom}>
+            Already have an account? <Link to="/login" style={s.link}>Log in</Link>
           </p>
         </motion.div>
       </div>
