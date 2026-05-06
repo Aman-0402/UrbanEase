@@ -25,6 +25,9 @@ urlpatterns = [
 
     # Notifications
     path('api/', include('apps.notifications.urls')),
+
+    # Admin panel API
+    path('api/', include('apps.adminpanel.urls')),
 ]
 
 if settings.DEBUG:

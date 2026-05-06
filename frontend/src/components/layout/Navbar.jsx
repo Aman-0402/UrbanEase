@@ -23,7 +23,7 @@ export default function Navbar() {
 
   const linkColor  = scrolled ? '#374151' : 'rgba(255,255,255,0.85)'
   const logoColor  = scrolled ? '#7c3aed' : 'white'
-  const dashRoute  = user?.role === 'provider' ? '/provider' : '/dashboard'
+  const dashRoute  = user?.is_staff ? '/admin-panel' : user?.role === 'provider' ? '/provider' : '/dashboard'
 
   return (
     <motion.nav

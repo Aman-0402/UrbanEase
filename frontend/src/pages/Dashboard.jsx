@@ -16,6 +16,7 @@ export default function Dashboard() {
   const name = user?.full_name || user?.phone || 'there'
   const role = user?.role || 'customer'
 
+  if (user?.is_staff)      return <Navigate to="/admin-panel" replace />
   if (role === 'provider') return <Navigate to="/provider" replace />
 
   return (

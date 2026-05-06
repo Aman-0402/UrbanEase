@@ -31,6 +31,7 @@ LOCAL_APPS = [
     'apps.bookings',
     'apps.reviews',
     'apps.notifications',
+    'apps.adminpanel',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

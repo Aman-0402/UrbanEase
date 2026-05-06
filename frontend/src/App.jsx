@@ -5,6 +5,7 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import ProviderDashboard from './pages/ProviderDashboard'
+import AdminPanel from './pages/AdminPanel'
 import Services from './pages/Services'
 import Providers from './pages/Providers'
 import BookingFlow from './pages/BookingFlow'
@@ -25,7 +26,9 @@ const NotFound = () => (
 function GuestRoute({ children }) {
   const { isAuthenticated, user } = useAuthStore()
   if (!isAuthenticated) return children
-  return <Navigate to={user?.role === 'provider' ? '/provider' : '/dashboard'} replace />
+  if (user?.is_staff)            return <Navigate to="/admin-panel" replace />
+  if (user?.role === 'provider') return <Navigate to="/provider" replace />
+  return <Navigate to="/dashboard" replace />
 }
 
 function PrivateRoute({ children }) {
@@ -37,6 +40,13 @@ function ProviderRoute({ children }) {
   const { isAuthenticated, user } = useAuthStore()
   if (!isAuthenticated) return <Navigate to="/login" replace />
   if (user && user.role !== 'provider') return <Navigate to="/dashboard" replace />
+  return children
+}
+
+function AdminRoute({ children }) {
+  const { isAuthenticated, user } = useAuthStore()
+  if (!isAuthenticated) return <Navigate to="/login" replace />
+  if (user && !user.is_staff) return <Navigate to="/dashboard" replace />
   return children
 }
 
@@ -60,6 +70,9 @@ function App() {
 
         {/* Protected — provider */}
         <Route path="/provider" element={<ProviderRoute><ProviderDashboard /></ProviderRoute>} />
+
+        {/* Protected — admin */}
+        <Route path="/admin-panel" element={<AdminRoute><AdminPanel /></AdminRoute>} />
 
         <Route path="*" element={<NotFound />} />
       </Routes>
