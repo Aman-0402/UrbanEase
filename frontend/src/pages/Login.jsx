@@ -26,7 +26,7 @@ export default function Login() {
     setLoading(true)
     try {
       const { data: tokens } = await loginUser(phone, password)
-      const { data: user } = await getMe()
+      const { data: user } = await getMe(tokens.access)
       login(tokens, user)
       navigate('/')
     } catch {

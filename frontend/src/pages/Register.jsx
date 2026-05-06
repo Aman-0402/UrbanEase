@@ -87,7 +87,7 @@ export default function Register() {
     try {
       await registerUser({ ...data, role })
       const { data: tokens } = await loginUser(data.phone, data.password)
-      const { data: user }   = await getMe()
+      const { data: user }   = await getMe(tokens.access)
       login(tokens, user)
       navigate('/')
     } catch (err) {

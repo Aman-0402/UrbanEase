@@ -7,5 +7,8 @@ export const loginUser = (phone, password) =>
 export const registerUser = (data) =>
   api.post('/users/register/', data)
 
-export const getMe = () =>
-  api.get('/users/me/')
+// Pass access token explicitly so we don't depend on localStorage being set yet
+export const getMe = (accessToken) =>
+  api.get('/users/me/', {
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+  })
