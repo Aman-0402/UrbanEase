@@ -22,6 +22,9 @@ urlpatterns = [
 
     # Reviews
     path('api/', include('apps.reviews.urls')),
+
+    # Notifications
+    path('api/', include('apps.notifications.urls')),
 ]
 
 if settings.DEBUG:
