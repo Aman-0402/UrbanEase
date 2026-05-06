@@ -1,6 +1,7 @@
 import { Link, Navigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Zap, Search, Calendar, Star, Clock, ArrowRight, LogOut } from 'lucide-react'
+import { Search, Calendar, Star, Clock, ArrowRight, LogOut } from 'lucide-react'
+import Logo from '../components/layout/Logo'
 import useAuthStore from '../store/authStore'
 
 const quickLinks = [
@@ -24,11 +25,8 @@ export default function Dashboard() {
 
       {/* Top bar */}
       <div style={{ background:'white', borderBottom:'1px solid #f1f5f9', padding:'0 40px', display:'flex', alignItems:'center', justifyContent:'space-between', height:'68px', position:'sticky', top:0, zIndex:40, boxShadow:'0 1px 8px rgba(0,0,0,0.05)' }}>
-        <Link to="/" style={{ display:'flex', alignItems:'center', gap:'10px', textDecoration:'none' }}>
-          <div style={{ width:'34px', height:'34px', background:'linear-gradient(135deg,#7c3aed,#4338ca)', borderRadius:'9px', display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <Zap size={17} color="white"/>
-          </div>
-          <span style={{ fontSize:'18px', fontWeight:'900', color:'#7c3aed', letterSpacing:'-0.4px' }}>UrbanEase</span>
+        <Link to="/" style={{ textDecoration:'none' }}>
+          <Logo height={34}/>
         </Link>
         <div style={{ display:'flex', alignItems:'center', gap:'16px' }}>
           <div style={{ width:'36px', height:'36px', background:'linear-gradient(135deg,#7c3aed,#4338ca)', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontSize:'13px', fontWeight:'700' }}>

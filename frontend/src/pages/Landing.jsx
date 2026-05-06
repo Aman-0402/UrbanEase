@@ -8,6 +8,7 @@ import {
   BookOpen, Monitor, Scissors, Car,
   ArrowRight, CheckCircle, Users, TrendingUp, Award, HeartHandshake
 } from 'lucide-react'
+import Logo from '../components/layout/Logo'
 
 /* ─── Tiny helpers ─────────────────────────────────────────────────── */
 const fade = { hidden:{opacity:0,y:32}, visible:{opacity:1,y:0,transition:{duration:0.6,ease:'easeOut'}} }
@@ -361,12 +362,7 @@ function Footer() {
   return (
     <footer style={{ background:'#0a0a0f', padding:'32px 40px' }}>
       <div style={{ maxWidth:'1200px', margin:'0 auto', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'16px' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
-          <div style={{ width:'32px', height:'32px', background:'linear-gradient(135deg,#7c3aed,#4338ca)', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <Zap size={15} color="white"/>
-          </div>
-          <span style={{ color:'white', fontWeight:'800', fontSize:'16px' }}>UrbanEase</span>
-        </div>
+        <Logo height={32}/>
         <p style={{ color:'#475569', fontSize:'13px' }}>© 2026 UrbanEase. All rights reserved.</p>
         <div style={{ display:'flex', gap:'24px' }}>
           {['Privacy','Terms','Support'].map(i=>(

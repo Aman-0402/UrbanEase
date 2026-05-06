@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Zap, User, LogOut, BookOpen, LayoutDashboard, X, Check, AlertCircle, Camera } from 'lucide-react'
+import { User, LogOut, BookOpen, LayoutDashboard, X, Check, AlertCircle, Camera } from 'lucide-react'
 import useAuthStore from '../../store/authStore'
 import NotificationBell from './NotificationBell'
 import { updateMe } from '../../api/auth'
+import Logo from './Logo'
 
 const NAV_LINKS = [
   { label: 'Services',     to: '/services' },
@@ -173,11 +174,8 @@ export default function Navbar() {
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '68px' }}>
 
           {/* Logo */}
-          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
-            <div style={{ width: '36px', height: '36px', background: 'linear-gradient(135deg,#7c3aed,#4338ca)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(124,58,237,0.35)' }}>
-              <Zap size={18} color="white"/>
-            </div>
-            <span style={{ fontSize: '19px', fontWeight: '900', color: logoColor, letterSpacing: '-0.5px', transition: 'color 0.3s' }}>UrbanEase</span>
+          <Link to="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+            <Logo height={38}/>
           </Link>
 
           {/* Nav links */}

@@ -7,9 +7,9 @@ import {
   EyeOff,
   AlertCircle,
   ArrowRight,
-  Zap,
   CheckCircle,
 } from "lucide-react";
+import Logo from "../components/layout/Logo";
 import { registerUser, loginUser, getMe } from "../api/auth";
 import useAuthStore from "../store/authStore";
 
@@ -354,10 +354,7 @@ export default function Register() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <div style={s.logoBox}>
-            <Zap size={22} color="white" />
-          </div>
-          <span style={s.logoText}>UrbanEase</span>
+          <Logo height={44}/>
         </motion.div>
 
         <motion.div

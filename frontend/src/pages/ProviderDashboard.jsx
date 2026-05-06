@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Zap, LogOut, Star, Briefcase, IndianRupee, Calendar, Clock, MapPin,
+  LogOut, Star, Briefcase, IndianRupee, Calendar, Clock, MapPin,
   CheckCircle, ChevronRight, TrendingUp, Bell, Settings, User,
   PlayCircle, XCircle, AlertCircle, ToggleLeft, ToggleRight, Edit3,
 } from 'lucide-react'
+import Logo from '../components/layout/Logo'
 import useAuthStore from '../store/authStore'
 import {
   getMyProfile, updateMyProfile,
@@ -123,11 +124,8 @@ export default function ProviderDashboard() {
         <div style={{ width:'260px', background:'linear-gradient(180deg,#1e1b4b 0%,#312e81 100%)', display:'flex', flexDirection:'column', flexShrink:0, position:'sticky', top:0, height:'100vh', overflowY:'auto' }}>
           {/* Logo */}
           <div style={{ padding:'28px 24px 20px', borderBottom:'1px solid rgba(255,255,255,0.08)' }}>
-            <Link to="/" style={{ display:'flex', alignItems:'center', gap:'10px', textDecoration:'none' }}>
-              <div style={{ width:'34px', height:'34px', background:'linear-gradient(135deg,#7c3aed,#4338ca)', borderRadius:'9px', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                <Zap size={17} color="white"/>
-              </div>
-              <span style={{ fontSize:'17px', fontWeight:'900', color:'white', letterSpacing:'-0.4px' }}>UrbanEase</span>
+            <Link to="/" style={{ textDecoration:'none' }}>
+              <Logo height={34}/>
             </Link>
             <div style={{ marginTop:'16px', display:'flex', alignItems:'center', gap:'10px' }}>
               <div style={{ width:'38px', height:'38px', borderRadius:'12px', background:'rgba(255,255,255,0.12)', display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontWeight:'800', fontSize:'15px', flexShrink:0 }}>

@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
-  Zap, Users, Calendar, BarChart2, ShieldCheck, LogOut,
+  Users, Calendar, BarChart2, ShieldCheck, LogOut,
   Search, CheckCircle, XCircle, TrendingUp, IndianRupee,
   RefreshCw, UserCheck, AlertCircle,
 } from 'lucide-react'
+import Logo from '../components/layout/Logo'
 import useAuthStore from '../store/authStore'
 import { getStats, getAdminUsers, toggleUserActive, getAdminBookings, getAdminProviders, toggleVerified } from '../api/admin'
 
@@ -126,11 +127,8 @@ export default function AdminPanel() {
       {/* Sidebar */}
       <div style={{ width: '240px', background: 'linear-gradient(180deg,#0f172a 0%,#1e293b 100%)', display: 'flex', flexDirection: 'column', flexShrink: 0, position: 'sticky', top: 0, height: '100vh' }}>
         <div style={{ padding: '24px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', marginBottom: '20px' }}>
-            <div style={{ width: '32px', height: '32px', background: 'linear-gradient(135deg,#7c3aed,#4338ca)', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Zap size={15} color="white" />
-            </div>
-            <span style={{ fontSize: '16px', fontWeight: '900', color: 'white' }}>UrbanEase</span>
+          <Link to="/" style={{ textDecoration: 'none', display: 'block', marginBottom: '20px' }}>
+            <Logo height={32}/>
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg,#7c3aed,#4338ca)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '800', fontSize: '14px' }}>

@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { motion } from 'framer-motion'
-import { Eye, EyeOff, AlertCircle, ArrowRight, Zap, Star, Shield, Clock } from 'lucide-react'
+import { Eye, EyeOff, AlertCircle, ArrowRight, Star, Shield, Clock } from 'lucide-react'
+import Logo from '../components/layout/Logo'
 import { loginUser, getMe } from '../api/auth'
 import useAuthStore from '../store/authStore'
 
@@ -60,11 +61,8 @@ export default function Login() {
 
         {/* Logo */}
         <motion.div initial={{ opacity:0, x:-20 }} animate={{ opacity:1, x:0 }} transition={{ duration:0.6 }}
-          style={{ display:'flex', alignItems:'center', gap:'12px', position:'relative', zIndex:1 }}>
-          <div style={{ width:'44px', height:'44px', background:'rgba(255,255,255,0.2)', borderRadius:'12px', display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(8px)' }}>
-            <Zap size={22} color="white" />
-          </div>
-          <span style={{ color:'white', fontSize:'22px', fontWeight:'800', letterSpacing:'-0.5px' }}>UrbanEase</span>
+          style={{ position:'relative', zIndex:1 }}>
+          <Logo height={44}/>
         </motion.div>
 
         {/* Main copy */}
@@ -115,12 +113,9 @@ export default function Login() {
           style={{ width:'100%', maxWidth:'420px' }}
         >
           {/* Mobile logo */}
-          <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'40px' }} className="mobile-logo">
+          <div style={{ marginBottom:'40px' }} className="mobile-logo">
             <style>{`@media (min-width: 1024px) { .mobile-logo { display: none !important; } }`}</style>
-            <div style={{ width:'36px', height:'36px', background:'linear-gradient(135deg,#7c3aed,#4338ca)', borderRadius:'10px', display:'flex', alignItems:'center', justifyContent:'center' }}>
-              <Zap size={17} color="white" />
-            </div>
-            <span style={{ fontSize:'20px', fontWeight:'800', color:'#111827' }}>UrbanEase</span>
+            <Logo height={36}/>
           </div>
 
           <div style={{ marginBottom:'36px' }}>
