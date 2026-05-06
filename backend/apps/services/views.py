@@ -1,3 +1,4 @@
+import math
 from rest_framework import generics, filters, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -8,6 +9,15 @@ from .serializers import (
     ProviderListSerializer, ProviderDetailSerializer, ProviderUpdateSerializer,
 )
 from .filters import ProviderFilter
+
+
+def _haversine_km(lat1, lon1, lat2, lon2):
+    R = 6371
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    a = (math.sin(math.radians(lat2 - lat1) / 2) ** 2
+         + math.cos(phi1) * math.cos(phi2)
+         * math.sin(math.radians(lon2 - lon1) / 2) ** 2)
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
 class CategoryListView(generics.ListAPIView):
@@ -44,6 +54,46 @@ class ProviderListView(generics.ListAPIView):
     search_fields = ('user__full_name', 'city', 'services__name')
     ordering_fields = ('avg_rating', 'hourly_rate', 'total_jobs')
     ordering = ('-avg_rating',)
+
+    def list(self, request, *args, **kwargs):
+        qs = self.filter_queryset(self.get_queryset())
+
+        # Check for geo params before pagination so distance-sort works across the full result set
+        try:
+            user_lat = float(request.query_params['lat'])
+            user_lng = float(request.query_params['lng'])
+            geo = True
+        except (KeyError, ValueError, TypeError):
+            geo = False
+
+        # If distance sort requested, compute distances and sort before pagination
+        if geo and request.query_params.get('ordering') == 'distance':
+            profiles = list(qs)
+            def dist_key(p):
+                if p.latitude and p.longitude:
+                    return _haversine_km(user_lat, user_lng, float(p.latitude), float(p.longitude))
+                return float('inf')
+            profiles.sort(key=dist_key)
+            page = self.paginate_queryset(profiles)
+            items = page if page is not None else profiles
+        else:
+            page = self.paginate_queryset(qs)
+            items = page if page is not None else list(qs)
+
+        data = list(self.get_serializer(items, many=True).data)
+
+        if geo:
+            for item, profile in zip(data, items):
+                if profile.latitude and profile.longitude:
+                    item['distance_km'] = round(
+                        _haversine_km(user_lat, user_lng, float(profile.latitude), float(profile.longitude)), 1
+                    )
+                else:
+                    item['distance_km'] = None
+
+        if page is not None:
+            return self.get_paginated_response(data)
+        return Response(data)
 
 
 class ProviderDetailView(generics.RetrieveAPIView):

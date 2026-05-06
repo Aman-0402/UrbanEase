@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Star, MapPin, Clock, IndianRupee, CheckCircle, ArrowLeft, Briefcase } from 'lucide-react'
+import { Star, MapPin, Clock, IndianRupee, CheckCircle, ArrowLeft, Briefcase, Navigation, Navigation2 } from 'lucide-react'
 import { getServiceBySlug, getProviders } from '../api/services'
 import Navbar from '../components/layout/Navbar'
 import useAuthStore from '../store/authStore'
@@ -25,6 +25,9 @@ export default function Providers() {
   const [loading,  setLoading]  = useState(true)
   const [city,     setCity]     = useState('')
   const [sort,     setSort]     = useState('-avg_rating')
+  const [geoPos,   setGeoPos]   = useState(null)   // { lat, lng }
+  const [geoLoading, setGeoLoading] = useState(false)
+  const [geoError, setGeoError] = useState('')
 
   useEffect(() => {
     getServiceBySlug(slug).then(r => setService(r.data))
@@ -35,10 +38,11 @@ export default function Providers() {
     setLoading(true)
     const params = { service: service.id, ordering: sort }
     if (city) params.city = city
+    if (geoPos) { params.lat = geoPos.lat; params.lng = geoPos.lng }
     getProviders(params)
       .then(r => setProviders(r.data.results ?? r.data))
       .finally(() => setLoading(false))
-  }, [service, city, sort])
+  }, [service, city, sort, geoPos])
 
   function handleBook(providerId) {
     if (!isAuthenticated) {
@@ -48,8 +52,21 @@ export default function Providers() {
     }
   }
 
+  function handleLocate() {
+    if (!navigator.geolocation) { setGeoError('Geolocation not supported'); return }
+    if (geoPos) { setGeoPos(null); if (sort === 'distance') setSort('-avg_rating'); return }
+    setGeoLoading(true)
+    setGeoError('')
+    navigator.geolocation.getCurrentPosition(
+      pos => { setGeoPos({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setGeoLoading(false) },
+      ()  => { setGeoError('Location access denied'); setGeoLoading(false) },
+      { timeout: 8000 }
+    )
+  }
+
   return (
     <div style={{ minHeight:'100vh', background:'#f8fafc', fontFamily:'system-ui,-apple-system,sans-serif' }}>
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
       <Navbar />
 
       {/* Header */}
@@ -93,7 +110,26 @@ export default function Providers() {
             <option value="-total_jobs">Most jobs</option>
             <option value="hourly_rate">Price: Low to high</option>
             <option value="-hourly_rate">Price: High to low</option>
+            {geoPos && <option value="distance">Nearest first</option>}
           </select>
+
+          {/* Near me button */}
+          <button onClick={handleLocate} disabled={geoLoading}
+            style={{ display:'flex', alignItems:'center', gap:'7px', padding:'10px 16px',
+              background: geoPos ? '#ecfdf5' : 'white',
+              border: `2px solid ${geoPos ? '#6ee7b7' : '#e5e7eb'}`,
+              borderRadius:'12px', fontSize:'14px', fontWeight:'700',
+              color: geoPos ? '#059669' : '#374151',
+              cursor: geoLoading ? 'wait' : 'pointer', transition:'all 0.2s', whiteSpace:'nowrap' }}>
+            {geoLoading
+              ? <><Navigation2 size={14} style={{ animation:'spin 1s linear infinite' }}/> Locating…</>
+              : geoPos
+              ? <><Navigation size={14} fill='#059669'/> Near me ✕</>
+              : <><Navigation size={14}/> Near me</>}
+          </button>
+
+          {geoError && <span style={{ fontSize:'12px', color:'#ef4444' }}>{geoError}</span>}
+
           <span style={{ fontSize:'14px', color:'#64748b', marginLeft:'auto' }}>
             {loading ? 'Loading…' : `${providers.length} provider${providers.length !== 1 ? 's' : ''} found`}
           </span>
@@ -161,6 +197,12 @@ export default function Providers() {
                       <span style={{ display:'flex', alignItems:'center', gap:'5px', fontSize:'12px', color:'#64748b' }}>
                         <Clock size={12}/> {p.experience_years} yr{p.experience_years !== 1 ? 's' : ''} experience
                       </span>
+                      {p.distance_km != null && (
+                        <span style={{ display:'flex', alignItems:'center', gap:'5px', fontSize:'12px', fontWeight:'700',
+                          color:'#7c3aed', background:'#f5f3ff', padding:'2px 8px', borderRadius:'20px' }}>
+                          <Navigation size={11}/> {p.distance_km} km away
+                        </span>
+                      )}
                     </div>
                   </div>
 
