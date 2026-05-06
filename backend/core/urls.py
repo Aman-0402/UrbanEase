@@ -16,6 +16,9 @@ urlpatterns = [
 
     # Services
     path('api/', include('apps.services.urls')),
+
+    # Bookings
+    path('api/', include('apps.bookings.urls')),
 ]
 
 if settings.DEBUG:
