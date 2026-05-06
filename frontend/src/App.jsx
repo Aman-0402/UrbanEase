@@ -3,6 +3,7 @@ import Navbar from './components/layout/Navbar'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import Dashboard from './pages/Dashboard'
 import useAuthStore from './store/authStore'
 
 const NotFound = () => (
@@ -20,7 +21,12 @@ const NotFound = () => (
 
 function GuestRoute({ children }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
-  return isAuthenticated ? <Navigate to="/" replace /> : children
+  return isAuthenticated ? <Navigate to="/dashboard" replace /> : children
+}
+
+function PrivateRoute({ children }) {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  return isAuthenticated ? children : <Navigate to="/login" replace />
 }
 
 function App() {
@@ -33,6 +39,9 @@ function App() {
         {/* Auth pages — no navbar */}
         <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
         <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
+
+        {/* Protected */}
+        <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
 
         <Route path="*" element={<NotFound />} />
       </Routes>
