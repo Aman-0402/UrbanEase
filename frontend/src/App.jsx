@@ -1,22 +1,18 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import useAuthStore from './store/authStore'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import Navbar from './components/layout/Navbar'
+import Landing from './pages/Landing'
 
-// Pages (to be built incrementally)
-const Home = () => <div className="p-8 text-2xl font-bold">UrbanEase — Home</div>
-const Login = () => <div className="p-8 text-2xl font-bold">Login Page</div>
-const Register = () => <div className="p-8 text-2xl font-bold">Register Page</div>
-const NotFound = () => <div className="p-8 text-2xl font-bold">404 — Page Not Found</div>
-
-function PrivateRoute({ children }) {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
-  return isAuthenticated ? children : <Navigate to="/login" replace />
-}
+// Placeholder pages (built incrementally)
+const Login = () => <div className="min-h-screen flex items-center justify-center text-2xl font-bold text-gray-700">Login Page — Coming Soon</div>
+const Register = () => <div className="min-h-screen flex items-center justify-center text-2xl font-bold text-gray-700">Register Page — Coming Soon</div>
+const NotFound = () => <div className="min-h-screen flex items-center justify-center text-2xl font-bold text-gray-700">404 — Page Not Found</div>
 
 function App() {
   return (
     <BrowserRouter>
+      <Navbar />
       <Routes>
-        <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
+        <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="*" element={<NotFound />} />
