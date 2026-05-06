@@ -28,6 +28,9 @@ urlpatterns = [
 
     # Admin panel API
     path('api/', include('apps.adminpanel.urls')),
+
+    # Payments
+    path('api/', include('apps.payments.urls')),
 ]
 
 if settings.DEBUG:

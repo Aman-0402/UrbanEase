@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react'
 import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Calendar, Clock, MapPin, IndianRupee, CheckCircle, AlertCircle } from 'lucide-react'
-import { getProviderById, getServiceBySlug, getServices } from '../api/services'
+import { getProviderById, getServices } from '../api/services'
 import { createBooking } from '../api/bookings'
+import RazorpayButton from '../components/RazorpayButton'
 import Navbar from '../components/layout/Navbar'
 
 const inputStyle = (focused) => ({
@@ -23,7 +24,7 @@ export default function BookingFlow() {
   const [loading,  setLoading]  = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error,    setError]    = useState('')
-  const [success,  setSuccess]  = useState(false)
+  const [booking,  setBooking]  = useState(null)  // created booking object
   const [focusedField, setFocused] = useState('')
 
   const [form, setForm] = useState({
@@ -70,7 +71,7 @@ export default function BookingFlow() {
     setSubmitting(true)
     setError('')
     try {
-      await createBooking({
+      const res = await createBooking({
         provider: parseInt(providerId),
         service:  parseInt(form.service),
         scheduled_date: form.scheduled_date,
@@ -81,7 +82,7 @@ export default function BookingFlow() {
         notes:   form.notes,
         total_price: totalPrice,
       })
-      setSuccess(true)
+      setBooking(res.data)
     } catch (err) {
       const data = err.response?.data
       if (typeof data === 'object') {
@@ -102,23 +103,50 @@ export default function BookingFlow() {
     </div>
   )
 
-  if (success) return (
-    <div style={{ minHeight:'100vh', background:'#f8fafc', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'system-ui,-apple-system,sans-serif' }}>
+  if (booking) return (
+    <div style={{ minHeight:'100vh', background:'#f8fafc', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'system-ui,-apple-system,sans-serif', padding:'20px' }}>
       <motion.div initial={{opacity:0,scale:0.9}} animate={{opacity:1,scale:1}}
-        style={{ background:'white', borderRadius:'28px', padding:'60px 48px', textAlign:'center', maxWidth:'440px', width:'100%', boxShadow:'0 8px 40px rgba(0,0,0,0.1)' }}>
-        <div style={{ width:'80px', height:'80px', background:'#ecfdf5', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 24px' }}>
-          <CheckCircle size={40} color="#059669"/>
+        style={{ background:'white', borderRadius:'28px', padding:'48px', maxWidth:'460px', width:'100%', boxShadow:'0 8px 40px rgba(0,0,0,0.1)' }}>
+        <div style={{ textAlign:'center', marginBottom:'32px' }}>
+          <div style={{ width:'72px', height:'72px', background:'#ecfdf5', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 20px' }}>
+            <CheckCircle size={36} color="#059669"/>
+          </div>
+          <h2 style={{ fontSize:'22px', fontWeight:'900', color:'#0f172a', marginBottom:'8px' }}>Booking Placed!</h2>
+          <p style={{ color:'#64748b', fontSize:'14px', lineHeight:1.6 }}>
+            Your booking #{booking.id} is confirmed. Complete payment to secure your slot.
+          </p>
         </div>
-        <h2 style={{ fontSize:'24px', fontWeight:'900', color:'#0f172a', marginBottom:'12px' }}>Booking Confirmed!</h2>
-        <p style={{ color:'#64748b', fontSize:'15px', lineHeight:1.7, marginBottom:'32px' }}>
-          Your booking has been placed successfully. The provider will confirm shortly.
-        </p>
-        <div style={{ display:'flex', gap:'12px', justifyContent:'center' }}>
-          <Link to="/bookings" style={{ padding:'13px 28px', background:'linear-gradient(135deg,#7c3aed,#4338ca)', color:'white', borderRadius:'14px', fontWeight:'700', fontSize:'14px', textDecoration:'none' }}>
-            View Bookings
-          </Link>
-          <Link to="/services" style={{ padding:'13px 28px', border:'2px solid #e5e7eb', color:'#374151', borderRadius:'14px', fontWeight:'700', fontSize:'14px', textDecoration:'none' }}>
-            Book Another
+
+        {/* Summary */}
+        <div style={{ background:'#f8fafc', borderRadius:'16px', padding:'20px', marginBottom:'24px' }}>
+          {[
+            { label:'Service',  value: selectedService?.name || '—' },
+            { label:'Date',     value: form.scheduled_date },
+            { label:'Time',     value: form.scheduled_time },
+            { label:'Provider', value: provider?.full_name || '—' },
+          ].map(r => (
+            <div key={r.label} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid #f1f5f9' }}>
+              <span style={{ fontSize:'13px', color:'#64748b' }}>{r.label}</span>
+              <span style={{ fontSize:'13px', fontWeight:'700', color:'#0f172a' }}>{r.value}</span>
+            </div>
+          ))}
+          <div style={{ display:'flex', justifyContent:'space-between', paddingTop:'12px' }}>
+            <span style={{ fontSize:'14px', fontWeight:'700', color:'#374151' }}>Total</span>
+            <span style={{ fontSize:'18px', fontWeight:'900', color:'#7c3aed' }}>₹{parseFloat(totalPrice).toLocaleString('en-IN')}</span>
+          </div>
+        </div>
+
+        <RazorpayButton
+          bookingId={booking.id}
+          amount={`₹${parseFloat(totalPrice).toLocaleString('en-IN')}`}
+          onSuccess={() => navigate('/bookings')}
+        />
+
+        <div style={{ marginTop:'12px' }}>
+          <Link to="/bookings" style={{ display:'block', textAlign:'center', padding:'12px', border:'2px solid #e5e7eb', color:'#374151', borderRadius:'13px', fontWeight:'700', fontSize:'14px', textDecoration:'none', transition:'border 0.2s' }}
+            onMouseOver={e => e.currentTarget.style.borderColor='#7c3aed'}
+            onMouseOut={e => e.currentTarget.style.borderColor='#e5e7eb'}>
+            Pay Later — View Bookings
           </Link>
         </div>
       </motion.div>

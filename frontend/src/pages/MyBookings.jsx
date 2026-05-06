@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Calendar, Clock, MapPin, Star, X, CheckCircle, AlertCircle, ArrowRight, Zap } from 'lucide-react'
 import { getMyBookings, cancelBooking, submitReview, getBookingReview } from '../api/bookings'
+import { getPaymentStatus } from '../api/payments'
+import RazorpayButton from '../components/RazorpayButton'
 import Navbar from '../components/layout/Navbar'
 import useAuthStore from '../store/authStore'
 
@@ -97,8 +99,10 @@ export default function MyBookings() {
   const [loading,  setLoading]    = useState(true)
   const [activeTab, setActiveTab] = useState('')
   const [reviewModal, setReviewModal] = useState(null) // bookingId
-  const [reviewed, setReviewed]   = useState(new Set())
+  const [reviewed,   setReviewed]   = useState(new Set())
+  const [paid,       setPaid]       = useState(new Set())
   const [cancelling, setCancelling] = useState(null)
+  const [payingId,   setPayingId]   = useState(null)
 
   function fetchBookings(status = '') {
     setLoading(true)
@@ -110,6 +114,10 @@ export default function MyBookings() {
         // pre-check which completed ones already have reviews
         items.filter(b => b.status === 'completed').forEach(b => {
           getBookingReview(b.id).then(() => setReviewed(prev => new Set([...prev, b.id]))).catch(()=>{})
+        })
+        // pre-check payment status for pending/confirmed bookings
+        items.filter(b => ['pending','confirmed'].includes(b.status)).forEach(b => {
+          getPaymentStatus(b.id).then(r => { if (r.data.paid) setPaid(prev => new Set([...prev, b.id])) }).catch(()=>{})
         })
       })
       .finally(() => setLoading(false))
@@ -219,7 +227,21 @@ export default function MyBookings() {
                         </div>
 
                         {/* Actions */}
-                        <div style={{ display:'flex', gap:'10px', flexWrap:'wrap' }}>
+                        <div style={{ display:'flex', gap:'10px', flexWrap:'wrap', alignItems:'center' }}>
+                          {/* Pay Now — for unpaid pending/confirmed bookings */}
+                          {canCancel && !paid.has(b.id) && payingId !== b.id && (
+                            <button onClick={() => setPayingId(b.id)}
+                              style={{ display:'flex', alignItems:'center', gap:'6px', padding:'9px 18px', background:'#ecfdf5', color:'#059669', border:'1.5px solid #a7f3d0', borderRadius:'10px', fontWeight:'700', fontSize:'13px', cursor:'pointer', transition:'all 0.2s' }}
+                              onMouseOver={e => e.currentTarget.style.background='#d1fae5'}
+                              onMouseOut={e => e.currentTarget.style.background='#ecfdf5'}>
+                              💳 Pay Now
+                            </button>
+                          )}
+                          {paid.has(b.id) && (
+                            <span style={{ display:'flex', alignItems:'center', gap:'6px', padding:'9px 18px', background:'#ecfdf5', color:'#059669', borderRadius:'10px', fontWeight:'700', fontSize:'13px' }}>
+                              ✓ Paid
+                            </span>
+                          )}
                           {canReview && (
                             <button onClick={() => setReviewModal(b.id)}
                               style={{ display:'flex', alignItems:'center', gap:'6px', padding:'9px 18px', background:'#fffbeb', color:'#d97706', border:'1.5px solid #fde68a', borderRadius:'10px', fontWeight:'700', fontSize:'13px', cursor:'pointer', transition:'all 0.2s' }}
@@ -243,6 +265,24 @@ export default function MyBookings() {
                           )}
                         </div>
                       </div>
+
+                      {/* Inline Razorpay panel */}
+                      {payingId === b.id && (
+                        <div style={{ padding:'16px 28px 20px', borderTop:'1px solid #f1f5f9', background:'#fafffe' }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px' }}>
+                            <span style={{ fontSize:'13px', fontWeight:'700', color:'#374151' }}>Complete Payment — ₹{parseFloat(b.total_price || 0).toLocaleString('en-IN')}</span>
+                            <button onClick={() => setPayingId(null)} style={{ background:'none', border:'none', cursor:'pointer', color:'#94a3b8', fontSize:'13px', fontWeight:'600' }}>✕ Close</button>
+                          </div>
+                          <RazorpayButton
+                            bookingId={b.id}
+                            amount={`₹${parseFloat(b.total_price || 0).toLocaleString('en-IN')}`}
+                            onSuccess={() => {
+                              setPaid(prev => new Set([...prev, b.id]))
+                              setPayingId(null)
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
                   </motion.div>
                 )

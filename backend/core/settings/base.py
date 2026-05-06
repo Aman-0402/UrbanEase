@@ -32,6 +32,7 @@ LOCAL_APPS = [
     'apps.reviews',
     'apps.notifications',
     'apps.adminpanel',
+    'apps.payments',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -123,6 +124,11 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': False,
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
+
+# --- Razorpay ---------------------------------------------------------------
+
+RAZORPAY_KEY_ID     = config('RAZORPAY_KEY_ID',     default='')
+RAZORPAY_KEY_SECRET = config('RAZORPAY_KEY_SECRET',  default='')
 
 # --- CORS -------------------------------------------------------------------
 
