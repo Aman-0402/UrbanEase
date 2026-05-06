@@ -4,6 +4,7 @@ import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
+import ProviderDashboard from './pages/ProviderDashboard'
 import Services from './pages/Services'
 import Providers from './pages/Providers'
 import BookingFlow from './pages/BookingFlow'
@@ -22,13 +23,21 @@ const NotFound = () => (
 )
 
 function GuestRoute({ children }) {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
-  return isAuthenticated ? <Navigate to="/dashboard" replace /> : children
+  const { isAuthenticated, user } = useAuthStore()
+  if (!isAuthenticated) return children
+  return <Navigate to={user?.role === 'provider' ? '/provider' : '/dashboard'} replace />
 }
 
 function PrivateRoute({ children }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   return isAuthenticated ? children : <Navigate to="/login" replace />
+}
+
+function ProviderRoute({ children }) {
+  const { isAuthenticated, user } = useAuthStore()
+  if (!isAuthenticated) return <Navigate to="/login" replace />
+  if (user && user.role !== 'provider') return <Navigate to="/dashboard" replace />
+  return children
 }
 
 function App() {
@@ -44,10 +53,13 @@ function App() {
         <Route path="/login"    element={<GuestRoute><Login /></GuestRoute>} />
         <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
 
-        {/* Protected */}
+        {/* Protected — customer */}
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/bookings"  element={<PrivateRoute><MyBookings /></PrivateRoute>} />
         <Route path="/book/:providerId" element={<PrivateRoute><BookingFlow /></PrivateRoute>} />
+
+        {/* Protected — provider */}
+        <Route path="/provider" element={<ProviderRoute><ProviderDashboard /></ProviderRoute>} />
 
         <Route path="*" element={<NotFound />} />
       </Routes>

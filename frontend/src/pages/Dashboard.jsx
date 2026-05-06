@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Zap, Search, Calendar, Star, Clock, ArrowRight, LogOut } from 'lucide-react'
 import useAuthStore from '../store/authStore'
@@ -15,6 +15,8 @@ export default function Dashboard() {
 
   const name = user?.full_name || user?.phone || 'there'
   const role = user?.role || 'customer'
+
+  if (role === 'provider') return <Navigate to="/provider" replace />
 
   return (
     <div style={{ minHeight:'100vh', background:'#f8fafc', fontFamily:'system-ui,-apple-system,sans-serif' }}>
