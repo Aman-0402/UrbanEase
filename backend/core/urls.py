@@ -19,6 +19,9 @@ urlpatterns = [
 
     # Bookings
     path('api/', include('apps.bookings.urls')),
+
+    # Reviews
+    path('api/', include('apps.reviews.urls')),
 ]
 
 if settings.DEBUG:
