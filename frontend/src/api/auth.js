@@ -12,3 +12,6 @@ export const getMe = (accessToken) =>
   api.get('/users/me/', {
     headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
   })
+
+export const updateMe = (data) =>
+  api.patch('/users/me/', data)
