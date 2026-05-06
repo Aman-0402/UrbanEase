@@ -2,22 +2,9 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { motion } from 'framer-motion'
-import { Eye, EyeOff, Phone, Lock, User, Mail, Zap, AlertCircle, CheckCircle } from 'lucide-react'
+import { Eye, EyeOff, AlertCircle, ArrowRight, Zap, CheckCircle } from 'lucide-react'
 import { registerUser, loginUser, getMe } from '../api/auth'
 import useAuthStore from '../store/authStore'
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 24 },
-  visible: (i = 0) => ({
-    opacity: 1, y: 0,
-    transition: { duration: 0.5, delay: i * 0.07, ease: 'easeOut' },
-  }),
-}
-
-const roles = [
-  { value: 'customer', label: 'Customer', desc: 'I need services', emoji: '🏠' },
-  { value: 'provider', label: 'Provider', desc: 'I offer services', emoji: '🔧' },
-]
 
 const passwordRules = [
   { label: 'At least 8 characters', test: (v) => v.length >= 8 },
@@ -29,18 +16,11 @@ export default function Register() {
   const navigate = useNavigate()
   const login = useAuthStore((s) => s.login)
   const [showPassword, setShowPassword] = useState(false)
-  const [showConfirm, setShowConfirm] = useState(false)
   const [serverError, setServerError] = useState('')
   const [loading, setLoading] = useState(false)
   const [selectedRole, setSelectedRole] = useState('customer')
 
-  const {
-    register,
-    handleSubmit,
-    watch,
-    formState: { errors },
-  } = useForm({ defaultValues: { role: 'customer' } })
-
+  const { register, handleSubmit, watch, formState: { errors } } = useForm()
   const password = watch('password', '')
 
   const onSubmit = async (data) => {
@@ -53,10 +33,10 @@ export default function Register() {
       login(tokens, user)
       navigate('/')
     } catch (err) {
-      const errors = err.response?.data
-      if (errors) {
-        const firstKey = Object.keys(errors)[0]
-        setServerError(`${firstKey}: ${errors[firstKey][0]}`)
+      const e = err.response?.data
+      if (e) {
+        const key = Object.keys(e)[0]
+        setServerError(`${key}: ${e[key][0]}`)
       } else {
         setServerError('Something went wrong. Please try again.')
       }
@@ -66,263 +46,265 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-violet-950 to-indigo-950 flex items-center justify-center px-4 py-20">
+    <div className="min-h-screen flex">
 
-      {/* Background blobs */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {/* ── Left branding panel ── */}
+      <div className="hidden lg:flex lg:w-5/12 bg-gradient-to-br from-violet-600 via-violet-700 to-indigo-800 relative overflow-hidden flex-col justify-center p-16">
+        <div className="absolute -top-32 -left-32 w-96 h-96 bg-white/5 rounded-full" />
+        <div className="absolute -bottom-20 -right-20 w-80 h-80 bg-white/5 rounded-full" />
+
         <motion.div
-          animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.35, 0.2] }}
-          transition={{ duration: 8, repeat: Infinity }}
-          className="absolute -top-40 -right-40 w-96 h-96 bg-violet-500 rounded-full blur-3xl"
-        />
+          initial={{ opacity: 0, x: -30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6 }}
+          className="relative z-10 flex items-center gap-3 mb-16"
+        >
+          <div className="w-11 h-11 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
+            <Zap size={22} className="text-white" />
+          </div>
+          <span className="text-white text-2xl font-bold">UrbanEase</span>
+        </motion.div>
+
         <motion.div
-          animate={{ scale: [1.2, 1, 1.2], opacity: [0.15, 0.3, 0.15] }}
-          transition={{ duration: 10, repeat: Infinity, delay: 2 }}
-          className="absolute -bottom-40 -left-40 w-96 h-96 bg-indigo-500 rounded-full blur-3xl"
-        />
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.1 }}
+          className="relative z-10"
+        >
+          <h2 className="text-4xl font-extrabold text-white leading-tight mb-4">
+            Join thousands of<br />
+            <span className="text-violet-200">happy customers</span>
+          </h2>
+          <p className="text-violet-200 text-base leading-relaxed mb-10">
+            Create a free account and book your first home service in under 2 minutes.
+          </p>
+          {[
+            'Free to sign up — no credit card',
+            'Instant booking confirmation',
+            'Background-verified professionals',
+            '30-day satisfaction guarantee',
+          ].map((item) => (
+            <div key={item} className="flex items-center gap-3 mb-4">
+              <CheckCircle size={18} className="text-green-300 shrink-0" />
+              <span className="text-violet-100 text-sm font-medium">{item}</span>
+            </div>
+          ))}
+        </motion.div>
+
+        {/* Stats row */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.7, delay: 0.3 }}
+          className="relative z-10 grid grid-cols-3 gap-4 mt-12 pt-10 border-t border-white/20"
+        >
+          {[['50K+', 'Customers'], ['8K+', 'Providers'], ['98%', 'Satisfaction']].map(([val, lbl]) => (
+            <div key={lbl} className="text-center">
+              <div className="text-2xl font-extrabold text-white">{val}</div>
+              <div className="text-violet-300 text-xs mt-1">{lbl}</div>
+            </div>
+          ))}
+        </motion.div>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 40, scale: 0.97 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="relative z-10 w-full max-w-md"
-      >
-        <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8 shadow-2xl">
+      {/* ── Right form panel ── */}
+      <div className="w-full lg:w-7/12 bg-white flex items-center justify-center px-6 py-12 overflow-y-auto">
+        <motion.div
+          initial={{ opacity: 0, x: 30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6 }}
+          className="w-full max-w-lg"
+        >
+          {/* Mobile logo */}
+          <div className="flex lg:hidden items-center gap-2 mb-10">
+            <div className="w-9 h-9 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-xl flex items-center justify-center">
+              <Zap size={18} className="text-white" />
+            </div>
+            <span className="text-xl font-bold text-gray-900">UrbanEase</span>
+          </div>
 
-          {/* Logo */}
-          <motion.div custom={0} variants={fadeUp} initial="hidden" animate="visible" className="flex justify-center mb-6">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg">
-                <Zap size={20} className="text-white" />
-              </div>
-              <span className="text-2xl font-bold text-white">UrbanEase</span>
-            </Link>
-          </motion.div>
+          <div className="mb-8">
+            <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Create your account</h1>
+            <p className="text-gray-500">Get started — it's completely free</p>
+          </div>
 
-          {/* Heading */}
-          <motion.div custom={1} variants={fadeUp} initial="hidden" animate="visible" className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-white mb-2">Create your account</h1>
-            <p className="text-white/50 text-sm">Join 50,000+ users on UrbanEase</p>
-          </motion.div>
-
-          {/* Role selector */}
-          <motion.div custom={2} variants={fadeUp} initial="hidden" animate="visible" className="grid grid-cols-2 gap-3 mb-6">
-            {roles.map(({ value, label, desc, emoji }) => (
+          {/* Role toggle */}
+          <div className="flex gap-3 mb-8 p-1.5 bg-gray-100 rounded-2xl">
+            {[
+              { value: 'customer', label: '🏠  I need services' },
+              { value: 'provider', label: '🔧  I offer services' },
+            ].map(({ value, label }) => (
               <button
                 key={value}
                 type="button"
                 onClick={() => setSelectedRole(value)}
-                className={`p-4 rounded-2xl border text-left transition-all duration-200 ${
+                className={`flex-1 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
                   selectedRole === value
-                    ? 'bg-violet-600/30 border-violet-400/60 shadow-lg shadow-violet-500/20'
-                    : 'bg-white/5 border-white/10 hover:bg-white/10'
+                    ? 'bg-white text-violet-700 shadow-md shadow-violet-100'
+                    : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                <div className="text-2xl mb-1">{emoji}</div>
-                <div className="text-white font-semibold text-sm">{label}</div>
-                <div className="text-white/40 text-xs">{desc}</div>
+                {label}
               </button>
             ))}
-          </motion.div>
+          </div>
 
-          {/* Server error */}
+          {/* Error */}
           {serverError && (
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
+              initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex items-center gap-2 bg-red-500/20 border border-red-400/30 text-red-300 rounded-xl px-4 py-3 mb-5 text-sm"
+              className="flex items-center gap-3 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3.5 mb-6 text-sm"
             >
-              <AlertCircle size={16} className="shrink-0" />
+              <AlertCircle size={17} className="shrink-0 text-red-500" />
               {serverError}
             </motion.div>
           )}
 
-          <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
 
-            {/* Full Name */}
-            <motion.div custom={3} variants={fadeUp} initial="hidden" animate="visible">
-              <label className="block text-white/70 text-sm font-medium mb-2">Full Name</label>
-              <div className="relative">
-                <User size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" />
+            {/* Name + Phone row */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Full Name</label>
                 <input
                   type="text"
                   placeholder="Aman Singh"
-                  {...register('full_name', { required: 'Full name is required' })}
-                  className={`w-full bg-white/10 border ${errors.full_name ? 'border-red-400/60' : 'border-white/20'} text-white placeholder-white/30 rounded-xl pl-11 pr-4 py-3.5 text-sm outline-none focus:border-violet-400 focus:bg-white/15 transition-all duration-200`}
+                  {...register('full_name', { required: 'Required' })}
+                  className={`w-full px-4 py-3.5 rounded-xl border-2 text-gray-900 placeholder-gray-400 text-sm outline-none transition-all duration-200
+                    ${errors.full_name ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50 focus:border-violet-500 focus:bg-white'}`}
                 />
+                {errors.full_name && <p className="text-red-500 text-xs mt-1">{errors.full_name.message}</p>}
               </div>
-              {errors.full_name && (
-                <p className="text-red-400 text-xs mt-1.5 flex items-center gap-1">
-                  <AlertCircle size={12} /> {errors.full_name.message}
-                </p>
-              )}
-            </motion.div>
-
-            {/* Phone */}
-            <motion.div custom={4} variants={fadeUp} initial="hidden" animate="visible">
-              <label className="block text-white/70 text-sm font-medium mb-2">Phone Number</label>
-              <div className="relative">
-                <Phone size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" />
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label>
                 <input
                   type="tel"
                   placeholder="9999999999"
                   {...register('phone', {
-                    required: 'Phone number is required',
-                    pattern: { value: /^[6-9]\d{9}$/, message: 'Enter a valid 10-digit phone number' },
+                    required: 'Required',
+                    pattern: { value: /^[6-9]\d{9}$/, message: 'Invalid number' },
                   })}
-                  className={`w-full bg-white/10 border ${errors.phone ? 'border-red-400/60' : 'border-white/20'} text-white placeholder-white/30 rounded-xl pl-11 pr-4 py-3.5 text-sm outline-none focus:border-violet-400 focus:bg-white/15 transition-all duration-200`}
+                  className={`w-full px-4 py-3.5 rounded-xl border-2 text-gray-900 placeholder-gray-400 text-sm outline-none transition-all duration-200
+                    ${errors.phone ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50 focus:border-violet-500 focus:bg-white'}`}
                 />
+                {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
               </div>
-              {errors.phone && (
-                <p className="text-red-400 text-xs mt-1.5 flex items-center gap-1">
-                  <AlertCircle size={12} /> {errors.phone.message}
-                </p>
-              )}
-            </motion.div>
+            </div>
 
-            {/* Email (optional) */}
-            <motion.div custom={5} variants={fadeUp} initial="hidden" animate="visible">
-              <label className="block text-white/70 text-sm font-medium mb-2">
-                Email <span className="text-white/30 font-normal">(optional)</span>
+            {/* Email */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Email <span className="text-gray-400 font-normal">(optional)</span>
               </label>
-              <div className="relative">
-                <Mail size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" />
-                <input
-                  type="email"
-                  placeholder="you@example.com"
-                  {...register('email', {
-                    pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter a valid email address' },
-                  })}
-                  className={`w-full bg-white/10 border ${errors.email ? 'border-red-400/60' : 'border-white/20'} text-white placeholder-white/30 rounded-xl pl-11 pr-4 py-3.5 text-sm outline-none focus:border-violet-400 focus:bg-white/15 transition-all duration-200`}
-                />
-              </div>
-              {errors.email && (
-                <p className="text-red-400 text-xs mt-1.5 flex items-center gap-1">
-                  <AlertCircle size={12} /> {errors.email.message}
-                </p>
-              )}
-            </motion.div>
+              <input
+                type="email"
+                placeholder="you@example.com"
+                {...register('email', {
+                  pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Invalid email' },
+                })}
+                className={`w-full px-4 py-3.5 rounded-xl border-2 text-gray-900 placeholder-gray-400 text-sm outline-none transition-all duration-200
+                  ${errors.email ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50 focus:border-violet-500 focus:bg-white'}`}
+              />
+              {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
+            </div>
 
             {/* Password */}
-            <motion.div custom={6} variants={fadeUp} initial="hidden" animate="visible">
-              <label className="block text-white/70 text-sm font-medium mb-2">Password</label>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
               <div className="relative">
-                <Lock size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Create a strong password"
                   {...register('password', {
                     required: 'Password is required',
-                    minLength: { value: 8, message: 'Password must be at least 8 characters' },
+                    minLength: { value: 8, message: 'Min 8 characters' },
                   })}
-                  className={`w-full bg-white/10 border ${errors.password ? 'border-red-400/60' : 'border-white/20'} text-white placeholder-white/30 rounded-xl pl-11 pr-12 py-3.5 text-sm outline-none focus:border-violet-400 focus:bg-white/15 transition-all duration-200`}
+                  className={`w-full px-4 py-3.5 pr-12 rounded-xl border-2 text-gray-900 placeholder-gray-400 text-sm outline-none transition-all duration-200
+                    ${errors.password ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50 focus:border-violet-500 focus:bg-white'}`}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70 transition-colors"
-                >
-                  {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                <button type="button" onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
 
-              {/* Password strength indicators */}
+              {/* Strength meter */}
               {password && (
-                <div className="mt-2 space-y-1">
-                  {passwordRules.map(({ label, test }) => (
-                    <div key={label} className="flex items-center gap-1.5">
-                      <CheckCircle
-                        size={12}
-                        className={test(password) ? 'text-green-400' : 'text-white/20'}
-                      />
-                      <span className={`text-xs ${test(password) ? 'text-green-400' : 'text-white/30'}`}>
-                        {label}
-                      </span>
-                    </div>
+                <div className="mt-3 flex gap-2">
+                  {passwordRules.map(({ test }, i) => (
+                    <div key={i} className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${test(password) ? 'bg-violet-500' : 'bg-gray-200'}`} />
                   ))}
                 </div>
               )}
-            </motion.div>
+              {password && (
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                  {passwordRules.map(({ label, test }) => (
+                    <span key={label} className={`text-xs flex items-center gap-1 ${test(password) ? 'text-violet-600' : 'text-gray-400'}`}>
+                      <CheckCircle size={11} /> {label}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
 
-            {/* Confirm Password */}
-            <motion.div custom={7} variants={fadeUp} initial="hidden" animate="visible">
-              <label className="block text-white/70 text-sm font-medium mb-2">Confirm Password</label>
+            {/* Confirm password */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Confirm Password</label>
               <div className="relative">
-                <Lock size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" />
                 <input
-                  type={showConfirm ? 'text' : 'password'}
-                  placeholder="Repeat your password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Repeat password"
                   {...register('confirm_password', {
-                    required: 'Please confirm your password',
+                    required: 'Please confirm password',
                     validate: (v) => v === password || 'Passwords do not match',
                   })}
-                  className={`w-full bg-white/10 border ${errors.confirm_password ? 'border-red-400/60' : 'border-white/20'} text-white placeholder-white/30 rounded-xl pl-11 pr-12 py-3.5 text-sm outline-none focus:border-violet-400 focus:bg-white/15 transition-all duration-200`}
+                  className={`w-full px-4 py-3.5 pr-12 rounded-xl border-2 text-gray-900 placeholder-gray-400 text-sm outline-none transition-all duration-200
+                    ${errors.confirm_password ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50 focus:border-violet-500 focus:bg-white'}`}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirm(!showConfirm)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70 transition-colors"
-                >
-                  {showConfirm ? <EyeOff size={17} /> : <Eye size={17} />}
-                </button>
               </div>
               {errors.confirm_password && (
-                <p className="text-red-400 text-xs mt-1.5 flex items-center gap-1">
+                <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
                   <AlertCircle size={12} /> {errors.confirm_password.message}
                 </p>
               )}
-            </motion.div>
+            </div>
 
             {/* Terms */}
-            <motion.div custom={8} variants={fadeUp} initial="hidden" animate="visible" className="flex items-start gap-2">
-              <input
-                type="checkbox"
-                id="terms"
-                {...register('terms', { required: 'You must accept the terms' })}
-                className="mt-0.5 accent-violet-500"
+            <div className="flex items-start gap-3">
+              <input type="checkbox" id="terms"
+                {...register('terms', { required: true })}
+                className="mt-0.5 w-4 h-4 accent-violet-600 cursor-pointer"
               />
-              <label htmlFor="terms" className="text-white/50 text-xs leading-relaxed">
+              <label htmlFor="terms" className="text-gray-500 text-sm cursor-pointer">
                 I agree to the{' '}
-                <a href="#" className="text-violet-400 hover:underline">Terms of Service</a>{' '}
-                and{' '}
-                <a href="#" className="text-violet-400 hover:underline">Privacy Policy</a>
+                <a href="#" className="text-violet-600 font-medium hover:underline">Terms of Service</a>
+                {' '}and{' '}
+                <a href="#" className="text-violet-600 font-medium hover:underline">Privacy Policy</a>
               </label>
-            </motion.div>
-            {errors.terms && (
-              <p className="text-red-400 text-xs flex items-center gap-1">
-                <AlertCircle size={12} /> {errors.terms.message}
-              </p>
-            )}
+            </div>
 
-            {/* Submit */}
-            <motion.div custom={9} variants={fadeUp} initial="hidden" animate="visible">
-              <motion.button
-                type="submit"
-                disabled={loading}
-                whileHover={{ scale: loading ? 1 : 1.02 }}
-                whileTap={{ scale: loading ? 1 : 0.98 }}
-                className="w-full py-3.5 bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-violet-500/30 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <>
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Creating account...
-                  </>
-                ) : 'Create account'}
-              </motion.button>
-            </motion.div>
+            <motion.button
+              type="submit"
+              disabled={loading}
+              whileHover={{ scale: loading ? 1 : 1.01 }}
+              whileTap={{ scale: loading ? 1 : 0.99 }}
+              className="w-full flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold rounded-xl text-sm hover:shadow-lg hover:shadow-violet-200 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Creating account...</>
+              ) : (
+                <>Create account <ArrowRight size={17} /></>
+              )}
+            </motion.button>
           </form>
 
-          {/* Login link */}
-          <motion.p custom={10} variants={fadeUp} initial="hidden" animate="visible" className="text-center text-white/50 text-sm mt-6">
+          <p className="text-center text-gray-500 text-sm mt-8">
             Already have an account?{' '}
-            <Link to="/login" className="text-violet-400 font-semibold hover:text-violet-300 transition-colors">
-              Log in
-            </Link>
-          </motion.p>
-        </div>
-      </motion.div>
+            <Link to="/login" className="text-violet-600 font-semibold hover:text-violet-700">Log in</Link>
+          </p>
+        </motion.div>
+      </div>
     </div>
   )
 }
