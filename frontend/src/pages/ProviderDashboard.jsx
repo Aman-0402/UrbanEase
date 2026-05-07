@@ -158,20 +158,24 @@ export default function ProviderDashboard() {
           {/* Nav */}
           <nav style={{ padding:'16px 16px', flex:1 }}>
             {[
-              { key:'bookings', icon:Calendar, label:'Bookings', badge: pendingCount || null },
-              { key:'profile',  icon:User,     label:'My Profile' },
+              { key:'bookings', icon:Calendar,    label:'Bookings',  badge: pendingCount || null },
+              { key:'profile',  icon:User,        label:'My Profile' },
+              { key:'earnings', icon:TrendingUp,  label:'Earnings',  link:'/provider/earnings' },
             ].map(item => {
               const active = activeSection === item.key
-              return (
-                <button key={item.key} onClick={() => setActiveSection(item.key)}
-                  style={{ width:'100%', display:'flex', alignItems:'center', gap:'12px', padding:'12px 14px', borderRadius:'12px', border:'none', cursor:'pointer', marginBottom:'4px', transition:'all 0.2s', background: active ? 'rgba(255,255,255,0.12)' : 'transparent', color: active ? 'white' : 'rgba(255,255,255,0.5)' }}>
+              const btnStyle = { width:'100%', display:'flex', alignItems:'center', gap:'12px', padding:'12px 14px', borderRadius:'12px', border:'none', cursor:'pointer', marginBottom:'4px', transition:'all 0.2s', background: active ? 'rgba(255,255,255,0.12)' : 'transparent', color: active ? 'white' : 'rgba(255,255,255,0.5)', textDecoration:'none' }
+              const inner = (
+                <>
                   <item.icon size={17}/>
                   <span style={{ fontSize:'14px', fontWeight: active ? '700' : '500', flex:1, textAlign:'left' }}>{item.label}</span>
                   {item.badge && (
                     <span style={{ background:'#ef4444', color:'white', fontSize:'10px', fontWeight:'800', borderRadius:'10px', padding:'2px 7px', minWidth:'18px', textAlign:'center' }}>{item.badge}</span>
                   )}
-                </button>
+                </>
               )
+              return item.link
+                ? <Link key={item.key} to={item.link} style={btnStyle}>{inner}</Link>
+                : <button key={item.key} onClick={() => setActiveSection(item.key)} style={btnStyle}>{inner}</button>
             })}
           </nav>
 

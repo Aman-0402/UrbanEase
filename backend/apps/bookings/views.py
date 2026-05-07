@@ -1,7 +1,10 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.decorators import api_view, permission_classes
 from django.utils import timezone
+from django.db.models import Sum, Count
+from django.db.models.functions import TruncMonth
 from django.shortcuts import get_object_or_404
 from .models import Booking, BookingStatusLog
 from .serializers import (
@@ -133,6 +136,56 @@ class BookingStatusUpdateView(APIView):
         )
 
         return Response(BookingDetailSerializer(booking).data)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def provider_earnings(request):
+    if request.user.role != 'provider':
+        return Response({'detail': 'Provider only.'}, status=403)
+
+    completed = Booking.objects.filter(
+        provider__user=request.user, status=Booking.COMPLETED
+    )
+    now = timezone.now()
+    this_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    last_month_start = (this_month_start.replace(day=1) - timezone.timedelta(days=1)).replace(day=1)
+
+    total_earned  = completed.aggregate(t=Sum('total_price'))['t'] or 0
+    this_month    = completed.filter(completed_at__gte=this_month_start).aggregate(t=Sum('total_price'))['t'] or 0
+    last_month_amt = completed.filter(
+        completed_at__gte=last_month_start, completed_at__lt=this_month_start
+    ).aggregate(t=Sum('total_price'))['t'] or 0
+
+    monthly = (
+        completed
+        .annotate(month=TruncMonth('completed_at'))
+        .values('month')
+        .annotate(amount=Sum('total_price'), jobs=Count('id'))
+        .order_by('-month')[:6]
+    )
+    monthly_data = [
+        {
+            'month': m['month'].strftime('%b %Y'),
+            'amount': float(m['amount'] or 0),
+            'jobs':   m['jobs'],
+        }
+        for m in monthly
+    ]
+
+    recent = BookingListSerializer(
+        completed.select_related('service__category', 'provider__user').order_by('-completed_at')[:10],
+        many=True,
+    ).data
+
+    return Response({
+        'total_earned':  float(total_earned),
+        'this_month':    float(this_month),
+        'last_month':    float(last_month_amt),
+        'total_jobs':    completed.count(),
+        'monthly':       monthly_data,
+        'recent':        recent,
+    })
 
 
 class BookingCancelView(APIView):

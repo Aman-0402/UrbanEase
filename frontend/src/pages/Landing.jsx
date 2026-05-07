@@ -1,12 +1,13 @@
-import { useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion, useInView } from 'framer-motion'
 import useAuthStore from '../store/authStore'
 import {
   Zap, MapPin, Star, Shield, Clock, ChevronRight,
   Wrench, Zap as ElecIcon, Sparkles, Wind,
   BookOpen, Monitor, Scissors, Car,
-  ArrowRight, CheckCircle, Users, TrendingUp, Award, HeartHandshake
+  ArrowRight, CheckCircle, Users, TrendingUp, Award, HeartHandshake,
+  Search, X,
 } from 'lucide-react'
 import Logo from '../components/layout/Logo'
 
@@ -70,6 +71,14 @@ const testimonials = [
 
 function Hero() {
   const { isAuthenticated, user } = useAuthStore()
+  const navigate = useNavigate()
+  const [query, setQuery] = useState('')
+
+  function handleSearch(e) {
+    e.preventDefault()
+    const q = query.trim()
+    navigate(q ? `/services?q=${encodeURIComponent(q)}` : '/services')
+  }
   return (
     <section style={{ position:'relative', minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', background:'linear-gradient(135deg,#0f0a1e 0%,#1e1040 45%,#0e1a3a 100%)', paddingTop:'80px' }}>
 
@@ -106,28 +115,68 @@ function Hero() {
 
         {/* sub */}
         <motion.p initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{duration:0.7,delay:0.2}}
-          style={{ fontSize:'18px', color:'rgba(255,255,255,0.55)', maxWidth:'560px', margin:'0 auto 40px', lineHeight:1.7 }}>
+          style={{ fontSize:'18px', color:'rgba(255,255,255,0.55)', maxWidth:'560px', margin:'0 auto 36px', lineHeight:1.7 }}>
           Connect with trusted, verified service professionals near you — instantly.<br />
           Plumbers, electricians, cleaners, tutors and more.
         </motion.p>
 
+        {/* Search bar */}
+        <motion.form initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{duration:0.7,delay:0.28}}
+          onSubmit={handleSearch}
+          style={{ display:'flex', gap:'0', maxWidth:'560px', margin:'0 auto 32px', background:'white', borderRadius:'18px', boxShadow:'0 8px 40px rgba(0,0,0,0.3)', overflow:'hidden', border:'2px solid rgba(255,255,255,0.15)' }}>
+          <div style={{ display:'flex', alignItems:'center', flex:1, padding:'0 18px', gap:'10px' }}>
+            <Search size={18} color="#94a3b8" style={{ flexShrink:0 }}/>
+            <input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="e.g. AC repair, plumber, cleaning…"
+              style={{ flex:1, border:'none', outline:'none', fontSize:'15px', color:'#0f172a', background:'transparent', padding:'18px 0', fontFamily:'system-ui,-apple-system,sans-serif' }}
+            />
+            {query && (
+              <button type="button" onClick={() => setQuery('')}
+                style={{ background:'none', border:'none', cursor:'pointer', color:'#94a3b8', display:'flex', padding:'4px' }}>
+                <X size={16}/>
+              </button>
+            )}
+          </div>
+          <button type="submit"
+            style={{ padding:'0 28px', background:'linear-gradient(135deg,#7c3aed,#4338ca)', color:'white', border:'none', fontWeight:'800', fontSize:'15px', cursor:'pointer', transition:'all 0.2s', whiteSpace:'nowrap', letterSpacing:'-0.2px' }}
+            onMouseOver={e=>e.currentTarget.style.background='linear-gradient(135deg,#6d28d9,#3730a3)'}
+            onMouseOut={e=>e.currentTarget.style.background='linear-gradient(135deg,#7c3aed,#4338ca)'}>
+            Search
+          </button>
+        </motion.form>
+
+        {/* Popular searches */}
+        <motion.div initial={{opacity:0}} animate={{opacity:1}} transition={{duration:0.7,delay:0.35}}
+          style={{ display:'flex', gap:'8px', justifyContent:'center', flexWrap:'wrap', marginBottom:'40px' }}>
+          {['AC Service','Plumber','Deep Cleaning','Electrician','Pest Control'].map(tag => (
+            <button key={tag} onClick={() => navigate(`/services?q=${encodeURIComponent(tag)}`)}
+              style={{ padding:'6px 14px', background:'rgba(255,255,255,0.1)', border:'1px solid rgba(255,255,255,0.18)', borderRadius:'100px', color:'rgba(255,255,255,0.75)', fontSize:'13px', cursor:'pointer', transition:'all 0.2s', backdropFilter:'blur(4px)' }}
+              onMouseOver={e=>{e.currentTarget.style.background='rgba(255,255,255,0.2)';e.currentTarget.style.color='white'}}
+              onMouseOut={e=>{e.currentTarget.style.background='rgba(255,255,255,0.1)';e.currentTarget.style.color='rgba(255,255,255,0.75)'}}>
+              {tag}
+            </button>
+          ))}
+        </motion.div>
+
         {/* CTAs */}
-        <motion.div initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{duration:0.7,delay:0.3}}
+        <motion.div initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{duration:0.7,delay:0.4}}
           style={{ display:'flex', gap:'14px', justifyContent:'center', flexWrap:'wrap', marginBottom:'48px' }}>
           {isAuthenticated ? (
-            <Link to="/dashboard" style={{ display:'inline-flex', alignItems:'center', gap:'8px', padding:'16px 32px', background:'linear-gradient(135deg,#7c3aed,#4338ca)', color:'white', fontWeight:'700', fontSize:'16px', borderRadius:'16px', textDecoration:'none', boxShadow:'0 8px 32px rgba(124,58,237,0.4)', transition:'all 0.2s' }}
+            <Link to="/dashboard" style={{ display:'inline-flex', alignItems:'center', gap:'8px', padding:'14px 28px', background:'linear-gradient(135deg,#7c3aed,#4338ca)', color:'white', fontWeight:'700', fontSize:'15px', borderRadius:'14px', textDecoration:'none', boxShadow:'0 8px 32px rgba(124,58,237,0.4)', transition:'all 0.2s' }}
               onMouseOver={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 12px 40px rgba(124,58,237,0.5)'}}
               onMouseOut={e=>{e.currentTarget.style.transform='';e.currentTarget.style.boxShadow='0 8px 32px rgba(124,58,237,0.4)'}}>
-              Go to Dashboard <ArrowRight size={18}/>
+              Go to Dashboard <ArrowRight size={17}/>
             </Link>
           ) : (
-            <Link to="/register" style={{ display:'inline-flex', alignItems:'center', gap:'8px', padding:'16px 32px', background:'linear-gradient(135deg,#7c3aed,#4338ca)', color:'white', fontWeight:'700', fontSize:'16px', borderRadius:'16px', textDecoration:'none', boxShadow:'0 8px 32px rgba(124,58,237,0.4)', transition:'all 0.2s' }}
+            <Link to="/register" style={{ display:'inline-flex', alignItems:'center', gap:'8px', padding:'14px 28px', background:'linear-gradient(135deg,#7c3aed,#4338ca)', color:'white', fontWeight:'700', fontSize:'15px', borderRadius:'14px', textDecoration:'none', boxShadow:'0 8px 32px rgba(124,58,237,0.4)', transition:'all 0.2s' }}
               onMouseOver={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow='0 12px 40px rgba(124,58,237,0.5)'}}
               onMouseOut={e=>{e.currentTarget.style.transform='';e.currentTarget.style.boxShadow='0 8px 32px rgba(124,58,237,0.4)'}}>
-              Get started free <ArrowRight size={18}/>
+              Get started free <ArrowRight size={17}/>
             </Link>
           )}
-          <a href="#how-it-works" style={{ display:'inline-flex', alignItems:'center', gap:'8px', padding:'16px 32px', background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.18)', color:'white', fontWeight:'600', fontSize:'16px', borderRadius:'16px', textDecoration:'none', backdropFilter:'blur(8px)', transition:'all 0.2s' }}
+          <a href="#how-it-works" style={{ display:'inline-flex', alignItems:'center', gap:'8px', padding:'14px 28px', background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.18)', color:'white', fontWeight:'600', fontSize:'15px', borderRadius:'14px', textDecoration:'none', backdropFilter:'blur(8px)', transition:'all 0.2s' }}
             onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,0.15)'}
             onMouseOut={e=>e.currentTarget.style.background='rgba(255,255,255,0.08)'}>
             See how it works

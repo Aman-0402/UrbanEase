@@ -228,6 +228,12 @@ export default function MyBookings() {
 
                         {/* Actions */}
                         <div style={{ display:'flex', gap:'10px', flexWrap:'wrap', alignItems:'center' }}>
+                          <Link to={`/bookings/${b.id}`}
+                            style={{ display:'flex', alignItems:'center', gap:'6px', padding:'9px 18px', background:'#f5f3ff', color:'#7c3aed', border:'1.5px solid #ddd6fe', borderRadius:'10px', fontWeight:'700', fontSize:'13px', textDecoration:'none', transition:'all 0.2s' }}
+                            onMouseOver={e=>e.currentTarget.style.background='#ede9fe'}
+                            onMouseOut={e=>e.currentTarget.style.background='#f5f3ff'}>
+                            <ArrowRight size={13}/> View Details
+                          </Link>
                           {/* Pay Now — for unpaid pending/confirmed bookings */}
                           {canCancel && !paid.has(b.id) && payingId !== b.id && (
                             <button onClick={() => setPayingId(b.id)}

@@ -6,11 +6,13 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import ProviderDashboard from './pages/ProviderDashboard'
+import ProviderEarnings from './pages/ProviderEarnings'
 import AdminPanel from './pages/AdminPanel'
 import Services from './pages/Services'
 import Providers from './pages/Providers'
 import BookingFlow from './pages/BookingFlow'
 import MyBookings from './pages/MyBookings'
+import BookingDetail from './pages/BookingDetail'
 import ProviderProfile from './pages/ProviderProfile'
 import useAuthStore from './store/authStore'
 import { getMe } from './api/auth'
@@ -78,10 +80,12 @@ function App() {
         {/* Protected — customer */}
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/bookings"  element={<PrivateRoute><MyBookings /></PrivateRoute>} />
+        <Route path="/bookings/:id" element={<PrivateRoute><BookingDetail /></PrivateRoute>} />
         <Route path="/book/:providerId" element={<PrivateRoute><BookingFlow /></PrivateRoute>} />
 
         {/* Protected — provider */}
         <Route path="/provider" element={<ProviderRoute><ProviderDashboard /></ProviderRoute>} />
+        <Route path="/provider/earnings" element={<ProviderRoute><ProviderEarnings /></ProviderRoute>} />
 
         {/* Protected — admin */}
         <Route path="/admin-panel" element={<AdminRoute><AdminPanel /></AdminRoute>} />

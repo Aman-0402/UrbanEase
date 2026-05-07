@@ -11,4 +11,5 @@ urlpatterns = [
 
     # Provider
     path('bookings/provider/',           views.ProviderBookingListView.as_view(),  name='booking-provider-list'),
+    path('bookings/provider/earnings/',  views.provider_earnings,                  name='provider-earnings'),
 ]
