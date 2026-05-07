@@ -42,7 +42,7 @@ class CustomerBookingListView(generics.ListAPIView):
     def get_queryset(self):
         qs = Booking.objects.filter(customer=self.request.user).select_related(
             'service__category', 'provider__user'
-        )
+        ).prefetch_related('items__service__category')
         status_filter = self.request.query_params.get('status')
         if status_filter:
             qs = qs.filter(status=status_filter)
@@ -57,7 +57,7 @@ class ProviderBookingListView(generics.ListAPIView):
     def get_queryset(self):
         qs = Booking.objects.filter(
             provider__user=self.request.user
-        ).select_related('service__category', 'provider__user')
+        ).select_related('service__category', 'provider__user').prefetch_related('items__service__category')
         status_filter = self.request.query_params.get('status')
         if status_filter:
             qs = qs.filter(status=status_filter)
@@ -71,9 +71,10 @@ class BookingDetailView(generics.RetrieveAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        return Booking.objects.filter(
-            customer=user
-        ) | Booking.objects.filter(provider__user=user)
+        qs = Booking.objects.filter(customer=user) | Booking.objects.filter(provider__user=user)
+        return qs.select_related(
+            'service__category', 'provider__user', 'customer'
+        ).prefetch_related('items__service__category', 'logs__changed_by')
 
 
 class BookingStatusUpdateView(APIView):
@@ -159,6 +160,7 @@ def provider_earnings(request):
 
     monthly = (
         completed
+        .exclude(completed_at__isnull=True)
         .annotate(month=TruncMonth('completed_at'))
         .values('month')
         .annotate(amount=Sum('total_price'), jobs=Count('id'))
@@ -171,10 +173,14 @@ def provider_earnings(request):
             'jobs':   m['jobs'],
         }
         for m in monthly
+        if m['month'] is not None
     ]
 
     recent = BookingListSerializer(
-        completed.select_related('service__category', 'provider__user').order_by('-completed_at')[:10],
+        completed
+        .select_related('service__category', 'provider__user', 'customer')
+        .prefetch_related('items__service__category')
+        .order_by('-completed_at')[:10],
         many=True,
     ).data
 

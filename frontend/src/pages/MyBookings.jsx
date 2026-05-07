@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Calendar, Clock, MapPin, Star, X, CheckCircle, AlertCircle, ArrowRight, RefreshCw } from 'lucide-react'
+import { Calendar, Clock, MapPin, Star, X, CheckCircle, AlertCircle, ArrowRight, RefreshCw, RotateCcw } from 'lucide-react'
 import { getMyBookings, cancelBooking, submitReview, getBookingReview } from '../api/bookings'
 import { getPaymentStatus } from '../api/payments'
 import RazorpayButton from '../components/RazorpayButton'
@@ -147,8 +147,20 @@ export default function MyBookings() {
       {/* Header */}
       <div style={{ background:'linear-gradient(135deg,#7c3aed 0%,#4338ca 100%)', padding:'40px 40px 36px' }}>
         <div style={{ maxWidth:'900px', margin:'0 auto' }}>
-          <h1 style={{ fontSize:'clamp(22px,3vw,32px)', fontWeight:'900', color:'white', marginBottom:'6px', letterSpacing:'-0.4px' }}>My Bookings</h1>
-          <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'15px' }}>Track and manage your service bookings</p>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'12px' }}>
+            <div>
+              <h1 style={{ fontSize:'clamp(22px,3vw,32px)', fontWeight:'900', color:'white', marginBottom:'6px', letterSpacing:'-0.4px' }}>My Bookings</h1>
+              <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'15px' }}>Track and manage your service bookings</p>
+            </div>
+            <button onClick={() => fetchBookings(activeTab)} disabled={loading}
+              style={{ display:'flex', alignItems:'center', gap:'6px', padding:'10px 18px', background:'rgba(255,255,255,0.12)', border:'1.5px solid rgba(255,255,255,0.25)', borderRadius:'12px', color:'white', fontWeight:'700', fontSize:'13px', cursor: loading ? 'wait' : 'pointer', transition:'all 0.2s' }}
+              onMouseOver={e => e.currentTarget.style.background='rgba(255,255,255,0.2)'}
+              onMouseOut={e => e.currentTarget.style.background='rgba(255,255,255,0.12)'}>
+              <RotateCcw size={14} style={{ animation: loading ? 'spin 0.8s linear infinite' : 'none' }}/>
+              Refresh
+            </button>
+          </div>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
       </div>
 
