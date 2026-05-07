@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Category, Service, ProviderProfile
+from .models import Category, Service, ProviderProfile, ProviderService
 
 
 @admin.register(Category)
@@ -19,10 +19,16 @@ class ServiceAdmin(admin.ModelAdmin):
     search_fields = ('name', 'category__name')
 
 
+class ProviderServiceInline(admin.TabularInline):
+    model  = ProviderService
+    extra  = 1
+    fields = ('service', 'custom_price')
+
+
 @admin.register(ProviderProfile)
 class ProviderProfileAdmin(admin.ModelAdmin):
     list_display  = ('__str__', 'city', 'avg_rating', 'total_jobs', 'is_available', 'is_verified')
     list_filter   = ('is_verified', 'is_available', 'city')
     list_editable = ('is_verified', 'is_available')
     search_fields = ('user__phone', 'user__full_name', 'city')
-    filter_horizontal = ('services',)
+    inlines       = (ProviderServiceInline,)

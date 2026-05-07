@@ -650,10 +650,10 @@ function ProfileEditor({ profile, onSaved }) {
   const [error,   setError]   = useState('')
   const [focused, setFocused] = useState('')
 
-  // Service management
+  // Service management — each entry is { id, price }
   const [allServices,      setAllServices]      = useState([])
   const [selectedServices, setSelectedServices] = useState(
-    (profile.services || []).map(s => s.id)
+    (profile.services || []).map(s => ({ id: s.id, price: s.custom_price ?? s.base_price ?? '' }))
   )
   const [serviceSearch, setServiceSearch] = useState('')
 
@@ -666,10 +666,18 @@ function ProfileEditor({ profile, onSaved }) {
     s.category_name?.toLowerCase().includes(serviceSearch.toLowerCase())
   )
 
-  function toggleService(id) {
-    setSelectedServices(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-    )
+  function toggleService(svc) {
+    const isSelected = selectedServices.some(s => s.id === svc.id)
+    if (isSelected) {
+      setSelectedServices(prev => prev.filter(s => s.id !== svc.id))
+    } else {
+      setSelectedServices(prev => [...prev, { id: svc.id, price: svc.base_price ?? '' }])
+    }
+    setSaved(false)
+  }
+
+  function updateServicePrice(id, price) {
+    setSelectedServices(prev => prev.map(s => s.id === id ? { ...s, price } : s))
     setSaved(false)
   }
 
@@ -683,7 +691,11 @@ function ProfileEditor({ profile, onSaved }) {
     e.preventDefault()
     setSaving(true)
     try {
-      const res = await updateMyProfile({ ...form, services: selectedServices })
+      const servicesPayload = selectedServices.map(s => ({
+        id: s.id,
+        custom_price: s.price !== '' && s.price !== null ? s.price : null,
+      }))
+      const res = await updateMyProfile({ ...form, services: servicesPayload })
       onSaved(res.data)
       setSaved(true)
     } catch (err) {
@@ -783,13 +795,13 @@ function ProfileEditor({ profile, onSaved }) {
         {/* Selected chips row */}
         {selectedServices.length > 0 && (
           <div style={{ display:'flex', flexWrap:'wrap', gap:'8px', marginBottom:'20px', padding:'16px', background:'#f5f3ff', borderRadius:'14px', border:'1px solid #ddd6fe' }}>
-            {selectedServices.map(id => {
+            {selectedServices.map(({ id, price }) => {
               const svc = allServices.find(s => s.id === id)
               if (!svc) return null
               return (
                 <span key={id} style={{ display:'inline-flex', alignItems:'center', gap:'6px', padding:'5px 12px', background:'white', border:'1.5px solid #ddd6fe', borderRadius:'100px', fontSize:'12px', fontWeight:'700', color:'#7c3aed' }}>
-                  {svc.name}
-                  <button onClick={()=>toggleService(id)} style={{ background:'none', border:'none', cursor:'pointer', color:'#a78bfa', display:'flex', padding:'0', lineHeight:1 }}>
+                  {svc.name} · ₹{price || svc.base_price}
+                  <button onClick={() => toggleService(svc)} style={{ background:'none', border:'none', cursor:'pointer', color:'#a78bfa', display:'flex', padding:'0', lineHeight:1 }}>
                     <X size={12}/>
                   </button>
                 </span>
@@ -807,22 +819,45 @@ function ProfileEditor({ profile, onSaved }) {
               <p style={{ fontSize:'11px', fontWeight:'800', color:'#94a3b8', textTransform:'uppercase', letterSpacing:'0.8px', marginBottom:'10px' }}>{cat}</p>
               <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
                 {services.map(svc => {
-                  const selected = selectedServices.includes(svc.id)
+                  const entry   = selectedServices.find(s => s.id === svc.id)
+                  const selected = !!entry
                   return (
-                    <motion.div key={svc.id}
-                      whileTap={{ scale:0.98 }}
-                      onClick={() => toggleService(svc.id)}
-                      style={{ display:'flex', alignItems:'center', gap:'14px', padding:'14px 16px', borderRadius:'14px', border:`2px solid ${selected ? '#7c3aed' : '#f1f5f9'}`, background: selected ? '#faf5ff' : 'white', cursor:'pointer', transition:'all 0.15s', userSelect:'none' }}>
-                      {/* Checkbox */}
-                      <div style={{ width:'20px', height:'20px', borderRadius:'6px', border:`2px solid ${selected ? '#7c3aed' : '#d1d5db'}`, background: selected ? '#7c3aed' : 'white', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, transition:'all 0.15s' }}>
-                        {selected && <CheckCircle size={13} color="white" strokeWidth={3}/>}
+                    <motion.div key={svc.id} whileTap={{ scale:0.98 }}
+                      style={{ borderRadius:'14px', border:`2px solid ${selected ? '#7c3aed' : '#f1f5f9'}`, background: selected ? '#faf5ff' : 'white', overflow:'hidden', transition:'all 0.15s' }}>
+                      {/* Top row — click to toggle */}
+                      <div onClick={() => toggleService(svc)}
+                        style={{ display:'flex', alignItems:'center', gap:'14px', padding:'14px 16px', cursor:'pointer', userSelect:'none' }}>
+                        <div style={{ width:'20px', height:'20px', borderRadius:'6px', border:`2px solid ${selected ? '#7c3aed' : '#d1d5db'}`, background: selected ? '#7c3aed' : 'white', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, transition:'all 0.15s' }}>
+                          {selected && <CheckCircle size={13} color="white" strokeWidth={3}/>}
+                        </div>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontSize:'14px', fontWeight: selected ? '700' : '600', color: selected ? '#6d28d9' : '#0f172a' }}>{svc.name}</div>
+                          <div style={{ fontSize:'11px', color:'#94a3b8', marginTop:'2px' }}>
+                            Platform base ₹{parseFloat(svc.base_price).toLocaleString('en-IN')} · {svc.duration_display}
+                          </div>
+                        </div>
+                        {selected && (
+                          <span style={{ fontSize:'11px', fontWeight:'700', color:'#7c3aed', background:'#ede9fe', padding:'3px 8px', borderRadius:'20px', whiteSpace:'nowrap' }}>Added ✓</span>
+                        )}
                       </div>
-                      <div style={{ flex:1 }}>
-                        <div style={{ fontSize:'14px', fontWeight: selected ? '700' : '600', color: selected ? '#6d28d9' : '#0f172a' }}>{svc.name}</div>
-                        <div style={{ fontSize:'11px', color:'#94a3b8', marginTop:'2px' }}>Base ₹{parseFloat(svc.base_price).toLocaleString('en-IN')} · {svc.duration_display}</div>
-                      </div>
+
+                      {/* Price input — visible only when selected */}
                       {selected && (
-                        <span style={{ fontSize:'11px', fontWeight:'700', color:'#7c3aed', background:'#ede9fe', padding:'3px 8px', borderRadius:'20px' }}>Added</span>
+                        <div onClick={e => e.stopPropagation()}
+                          style={{ padding:'0 16px 14px', display:'flex', alignItems:'center', gap:'10px' }}>
+                          <span style={{ fontSize:'12px', fontWeight:'700', color:'#374151', whiteSpace:'nowrap' }}>Your price (₹)</span>
+                          <div style={{ display:'flex', alignItems:'center', gap:'0', border:'2px solid #ddd6fe', borderRadius:'10px', overflow:'hidden', background:'white', flex:1, maxWidth:'180px' }}>
+                            <span style={{ padding:'8px 10px', fontSize:'13px', color:'#7c3aed', fontWeight:'700', background:'#f5f3ff', borderRight:'2px solid #ddd6fe' }}>₹</span>
+                            <input
+                              type="number" min="0" step="1"
+                              value={entry.price}
+                              placeholder={svc.base_price}
+                              onChange={e => updateServicePrice(svc.id, e.target.value)}
+                              style={{ flex:1, border:'none', outline:'none', padding:'8px 10px', fontSize:'13px', color:'#0f172a', fontWeight:'700', background:'transparent' }}
+                            />
+                          </div>
+                          <span style={{ fontSize:'11px', color:'#94a3b8' }}>leave blank for base price</span>
+                        </div>
                       )}
                     </motion.div>
                   )
@@ -841,7 +876,7 @@ function ProfileEditor({ profile, onSaved }) {
 
         <button onClick={save} disabled={saving}
           style={{ marginTop:'20px', width:'100%', padding:'14px', background: saved ? 'linear-gradient(135deg,#059669,#047857)' : 'linear-gradient(135deg,#7c3aed,#4338ca)', color:'white', border:'none', borderRadius:'14px', fontWeight:'800', fontSize:'14px', cursor: saving ? 'wait' : 'pointer', boxShadow:'0 4px 16px rgba(124,58,237,0.3)', transition:'all 0.3s' }}>
-          {saving ? 'Saving…' : saved ? '✓ Services Saved!' : `Save Services (${selectedServices.length} selected)`}
+          {saving ? 'Saving…' : saved ? '✓ Services Saved!' : `Save Services (${selectedServices.length} service${selectedServices.length !== 1 ? 's' : ''})`}
         </button>
       </div>
 

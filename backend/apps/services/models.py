@@ -51,7 +51,7 @@ class ProviderProfile(models.Model):
     user             = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='provider_profile')
     bio              = models.TextField(blank=True)
     experience_years = models.PositiveSmallIntegerField(default=0)
-    services         = models.ManyToManyField(Service, related_name='providers', blank=True)
+    services         = models.ManyToManyField(Service, through='ProviderService', related_name='providers', blank=True)
     hourly_rate      = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     city             = models.CharField(max_length=100, blank=True)
     latitude         = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
@@ -69,6 +69,22 @@ class ProviderProfile(models.Model):
 
     def __str__(self):
         return f'{self.user.full_name or self.user.phone} — Provider'
+
+
+class ProviderService(models.Model):
+    """Through model so each provider can set their own price per service."""
+    provider     = models.ForeignKey(ProviderProfile, on_delete=models.CASCADE, related_name='provider_services')
+    service      = models.ForeignKey(Service, on_delete=models.CASCADE)
+    custom_price = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+
+    class Meta:
+        unique_together = ('provider', 'service')
+
+    def effective_price(self):
+        return self.custom_price if self.custom_price is not None else self.service.base_price
+
+    def __str__(self):
+        return f'{self.provider} — {self.service}'
 
 
 class ProviderKYCDocument(models.Model):
