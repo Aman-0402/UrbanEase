@@ -1,17 +1,18 @@
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LogOut, Star, Briefcase, IndianRupee, Calendar, Clock, MapPin,
   CheckCircle, ChevronRight, TrendingUp, Bell, Settings, User,
   PlayCircle, XCircle, AlertCircle, ToggleLeft, ToggleRight, Edit3,
-  Search, X,
+  Search, X, ShieldCheck, Upload, FileText, Camera, Clock3,
 } from 'lucide-react'
 import Logo from '../components/layout/Logo'
 import useAuthStore from '../store/authStore'
 import {
   getMyProfile, updateMyProfile,
   getProviderBookings, updateBookingStatus,
+  getMyKYC, submitKYC,
 } from '../api/provider'
 import { getServices } from '../api/services'
 
@@ -162,6 +163,7 @@ export default function ProviderDashboard() {
             {[
               { key:'bookings', icon:Calendar,    label:'Bookings',  badge: pendingCount || null },
               { key:'profile',  icon:User,        label:'My Profile' },
+              { key:'kyc',      icon:ShieldCheck, label:'KYC & Verification' },
               { key:'earnings', icon:TrendingUp,  label:'Earnings',  link:'/provider/earnings' },
             ].map(item => {
               const active = activeSection === item.key
@@ -199,11 +201,13 @@ export default function ProviderDashboard() {
             {/* Header */}
             <div style={{ marginBottom:'32px' }}>
               <h1 style={{ fontSize:'24px', fontWeight:'900', color:'#0f172a', letterSpacing:'-0.4px', marginBottom:'4px' }}>
-                {activeSection === 'bookings' ? 'Booking Management' : 'My Profile'}
+                {activeSection === 'bookings' ? 'Booking Management'
+                  : activeSection === 'kyc' ? 'KYC & Verification'
+                  : 'My Profile'}
               </h1>
               <p style={{ color:'#64748b', fontSize:'14px' }}>
-                {activeSection === 'bookings'
-                  ? 'Review and update your assigned jobs'
+                {activeSection === 'bookings' ? 'Review and update your assigned jobs'
+                  : activeSection === 'kyc' ? 'Submit your identity documents to get verified on the platform'
                   : 'Manage your provider profile and settings'}
               </p>
             </div>
@@ -326,9 +330,309 @@ export default function ProviderDashboard() {
             {activeSection === 'profile' && profile && (
               <ProfileEditor profile={profile} onSaved={setProfile}/>
             )}
+
+            {/* ── KYC SECTION ── */}
+            {activeSection === 'kyc' && (
+              <KYCSection/>
+            )}
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+/* ── KYC section ── */
+const ID_TYPES = [
+  { value:'aadhaar',         label:'Aadhaar Card' },
+  { value:'pan',             label:'PAN Card' },
+  { value:'driving_license', label:'Driving License' },
+  { value:'passport',        label:'Passport' },
+]
+
+const KYC_STATUS_META = {
+  not_submitted:  { label:'Not Submitted',  color:'#64748b', bg:'#f8fafc', border:'#e2e8f0', icon:'📋' },
+  pending_review: { label:'Under Review',   color:'#d97706', bg:'#fffbeb', border:'#fde68a', icon:'⏳' },
+  verified:       { label:'Verified',       color:'#059669', bg:'#ecfdf5', border:'#a7f3d0', icon:'✅' },
+  rejected:       { label:'Rejected',       color:'#dc2626', bg:'#fef2f2', border:'#fecaca', icon:'❌' },
+}
+
+function FileUploadField({ label, name, value, onChange, required, hint }) {
+  const [preview, setPreview] = useState(null)
+  const fileRef = useRef()
+
+  function handleFile(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    onChange(name, file)
+    const reader = new FileReader()
+    reader.onload = ev => setPreview(ev.target.result)
+    reader.readAsDataURL(file)
+  }
+
+  const hasExisting = value && typeof value === 'string'
+
+  return (
+    <div>
+      <label style={{ display:'block', fontSize:'13px', fontWeight:'700', color:'#374151', marginBottom:'8px' }}>
+        {label} {required && <span style={{ color:'#ef4444' }}>*</span>}
+      </label>
+      {hint && <p style={{ fontSize:'12px', color:'#94a3b8', marginBottom:'8px', marginTop:'-4px' }}>{hint}</p>}
+      <div
+        onClick={() => fileRef.current.click()}
+        style={{ border:'2px dashed #d1d5db', borderRadius:'14px', padding:'20px', textAlign:'center', cursor:'pointer', background:'#f8fafc', transition:'all 0.2s', position:'relative', overflow:'hidden' }}
+        onMouseOver={e => e.currentTarget.style.borderColor = '#7c3aed'}
+        onMouseOut={e => e.currentTarget.style.borderColor = '#d1d5db'}>
+        <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display:'none' }}/>
+        {preview ? (
+          <img src={preview} alt="preview" style={{ maxHeight:'120px', maxWidth:'100%', borderRadius:'8px', objectFit:'cover' }}/>
+        ) : hasExisting ? (
+          <div>
+            <img src={value} alt="current" style={{ maxHeight:'80px', maxWidth:'100%', borderRadius:'8px', objectFit:'cover', marginBottom:'8px' }}/>
+            <p style={{ fontSize:'12px', color:'#64748b', margin:0 }}>Click to replace</p>
+          </div>
+        ) : (
+          <div>
+            <Upload size={28} color="#94a3b8" style={{ marginBottom:'8px' }}/>
+            <p style={{ fontSize:'13px', color:'#64748b', margin:0 }}>Click to upload image</p>
+            <p style={{ fontSize:'11px', color:'#94a3b8', margin:'4px 0 0' }}>JPG, PNG, max 5 MB</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function KYCSection() {
+  const [kyc,      setKyc]      = useState(null)
+  const [loading,  setLoading]  = useState(true)
+  const [saving,   setSaving]   = useState(false)
+  const [saved,    setSaved]    = useState(false)
+  const [error,    setError]    = useState('')
+  const [form,     setForm]     = useState({ govt_id_type:'', govt_id_number:'' })
+  const [files,    setFiles]    = useState({ id_front: null, id_back: null, selfie: null })
+  const [focused,  setFocused]  = useState('')
+
+  useEffect(() => {
+    getMyKYC()
+      .then(r => {
+        setKyc(r.data)
+        setForm({ govt_id_type: r.data.govt_id_type || '', govt_id_number: r.data.govt_id_number || '' })
+      })
+      .finally(() => setLoading(false))
+  }, [])
+
+  function handleFileChange(name, file) {
+    setFiles(f => ({ ...f, [name]: file }))
+    setSaved(false)
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (!form.govt_id_type) return setError('Please select an ID type.')
+    if (!form.govt_id_number.trim()) return setError('Please enter your ID number.')
+    if (!files.id_front && !kyc?.id_front) return setError('Please upload the front of your ID.')
+    if (!files.selfie && !kyc?.selfie) return setError('Please upload a selfie with your ID.')
+
+    setSaving(true)
+    setError('')
+    const fd = new FormData()
+    fd.append('govt_id_type',   form.govt_id_type)
+    fd.append('govt_id_number', form.govt_id_number)
+    if (files.id_front) fd.append('id_front', files.id_front)
+    if (files.id_back)  fd.append('id_back',  files.id_back)
+    if (files.selfie)   fd.append('selfie',   files.selfie)
+
+    try {
+      const res = await submitKYC(fd)
+      setKyc(res.data)
+      setSaved(true)
+    } catch (err) {
+      setError(Object.values(err.response?.data || {}).flat().join(' ') || 'Submission failed.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) return (
+    <div style={{ display:'flex', justifyContent:'center', padding:'60px 0' }}>
+      <div style={{ width:'32px', height:'32px', border:'3px solid #e5e7eb', borderTopColor:'#7c3aed', borderRadius:'50%', animation:'spin 0.8s linear infinite' }}/>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  )
+
+  const status = kyc?.kyc_status || 'not_submitted'
+  const meta   = KYC_STATUS_META[status] || KYC_STATUS_META.not_submitted
+  const canEdit = status === 'not_submitted' || status === 'rejected'
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:'24px' }}>
+
+      {/* Status Banner */}
+      <div style={{ background:meta.bg, border:`1.5px solid ${meta.border}`, borderRadius:'20px', padding:'24px 28px', display:'flex', alignItems:'center', gap:'16px' }}>
+        <span style={{ fontSize:'32px' }}>{meta.icon}</span>
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:'16px', fontWeight:'800', color:meta.color }}>{meta.label}</div>
+          {status === 'not_submitted' && (
+            <p style={{ margin:'4px 0 0', fontSize:'13px', color:'#64748b' }}>
+              Complete KYC to get a verified badge on your profile and earn customer trust.
+            </p>
+          )}
+          {status === 'pending_review' && (
+            <p style={{ margin:'4px 0 0', fontSize:'13px', color:'#92400e' }}>
+              Your documents are being reviewed. This usually takes 1–2 business days.
+            </p>
+          )}
+          {status === 'verified' && (
+            <p style={{ margin:'4px 0 0', fontSize:'13px', color:'#065f46' }}>
+              Your identity is verified. A ✓ Verified badge is shown on your public profile.
+            </p>
+          )}
+          {status === 'rejected' && (
+            <div>
+              <p style={{ margin:'4px 0 0', fontSize:'13px', color:'#991b1b' }}>
+                Your documents were rejected. Please re-submit with clearer images.
+              </p>
+              {kyc?.rejection_reason && (
+                <p style={{ margin:'8px 0 0', fontSize:'13px', fontWeight:'700', color:'#dc2626', background:'#fee2e2', padding:'8px 12px', borderRadius:'8px', display:'inline-block' }}>
+                  Reason: {kyc.rejection_reason}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+        {status === 'verified' && (
+          <ShieldCheck size={36} color="#059669"/>
+        )}
+      </div>
+
+      {/* What is KYC info card */}
+      {status === 'not_submitted' && (
+        <div style={{ background:'white', borderRadius:'20px', padding:'24px', border:'1px solid #f1f5f9', boxShadow:'0 2px 8px rgba(0,0,0,0.04)' }}>
+          <h3 style={{ fontSize:'14px', fontWeight:'800', color:'#0f172a', marginBottom:'16px' }}>Why verify?</h3>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px' }}>
+            {[
+              { icon:'🔒', title:'Build Trust',      desc:'Verified badge on your profile reassures customers' },
+              { icon:'📈', title:'More Bookings',    desc:'Customers prefer verified providers — you get priority listing' },
+              { icon:'💰', title:'Higher Payouts',   desc:'Verified providers unlock higher earning limits' },
+              { icon:'🛡️', title:'Platform Safety',  desc:'Keeps the marketplace safe for everyone' },
+            ].map(item => (
+              <div key={item.title} style={{ display:'flex', gap:'12px', padding:'14px', background:'#f8fafc', borderRadius:'12px' }}>
+                <span style={{ fontSize:'20px' }}>{item.icon}</span>
+                <div>
+                  <div style={{ fontSize:'13px', fontWeight:'700', color:'#0f172a' }}>{item.title}</div>
+                  <div style={{ fontSize:'11px', color:'#64748b', marginTop:'2px' }}>{item.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Submission form — shown for not_submitted and rejected */}
+      {canEdit && (
+        <form onSubmit={handleSubmit}>
+          <div style={{ background:'white', borderRadius:'24px', padding:'32px', border:'1px solid #f1f5f9', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', display:'flex', flexDirection:'column', gap:'24px' }}>
+            <h2 style={{ fontSize:'16px', fontWeight:'800', color:'#0f172a', margin:0 }}>Identity Documents</h2>
+
+            {/* ID Type */}
+            <div>
+              <label style={{ display:'block', fontSize:'13px', fontWeight:'700', color:'#374151', marginBottom:'8px' }}>
+                Government ID Type <span style={{ color:'#ef4444' }}>*</span>
+              </label>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:'10px' }}>
+                {ID_TYPES.map(t => (
+                  <div key={t.value}
+                    onClick={() => { setForm(f => ({...f, govt_id_type: t.value})); setSaved(false) }}
+                    style={{ padding:'13px 16px', borderRadius:'12px', border:`2px solid ${form.govt_id_type === t.value ? '#7c3aed' : '#e5e7eb'}`, background: form.govt_id_type === t.value ? '#faf5ff' : 'white', cursor:'pointer', fontSize:'14px', fontWeight: form.govt_id_type === t.value ? '700' : '500', color: form.govt_id_type === t.value ? '#6d28d9' : '#374151', transition:'all 0.15s' }}>
+                    {t.label}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ID Number */}
+            <div>
+              <label style={{ display:'block', fontSize:'13px', fontWeight:'700', color:'#374151', marginBottom:'8px' }}>
+                ID Number <span style={{ color:'#ef4444' }}>*</span>
+              </label>
+              <input
+                type="text"
+                value={form.govt_id_number}
+                onChange={e => { setForm(f => ({...f, govt_id_number: e.target.value})); setSaved(false) }}
+                placeholder={form.govt_id_type === 'aadhaar' ? '1234 5678 9012' : form.govt_id_type === 'pan' ? 'ABCDE1234F' : 'Enter ID number'}
+                onFocus={() => setFocused('id_number')}
+                onBlur={() => setFocused('')}
+                style={{ width:'100%', padding:'13px 16px', border:`2px solid ${focused === 'id_number' ? '#7c3aed' : '#e5e7eb'}`, borderRadius:'12px', fontSize:'14px', color:'#0f172a', outline:'none', background:'white', transition:'border 0.2s', boxSizing:'border-box', fontFamily:'inherit', letterSpacing:'0.5px' }}
+              />
+            </div>
+
+            {/* File uploads */}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'16px' }}>
+              <FileUploadField
+                label="ID — Front" name="id_front" required
+                value={kyc?.id_front} onChange={handleFileChange}
+                hint="Clear photo of the front of your ID"
+              />
+              <FileUploadField
+                label="ID — Back (optional)" name="id_back"
+                value={kyc?.id_back} onChange={handleFileChange}
+                hint="Back of ID if applicable"
+              />
+            </div>
+            <FileUploadField
+              label="Selfie holding your ID" name="selfie" required
+              value={kyc?.selfie} onChange={handleFileChange}
+              hint="Hold your ID next to your face — must be clearly readable"
+            />
+
+            {error && (
+              <div style={{ display:'flex', alignItems:'center', gap:'8px', padding:'12px 16px', background:'#fef2f2', borderRadius:'12px', border:'1px solid #fecaca', color:'#dc2626', fontSize:'13px' }}>
+                <AlertCircle size={14}/> {error}
+              </div>
+            )}
+
+            <button type="submit" disabled={saving}
+              style={{ padding:'15px', background: saved ? 'linear-gradient(135deg,#059669,#047857)' : 'linear-gradient(135deg,#7c3aed,#4338ca)', color:'white', border:'none', borderRadius:'14px', fontWeight:'800', fontSize:'14px', cursor: saving ? 'wait' : 'pointer', boxShadow:'0 4px 16px rgba(124,58,237,0.3)', transition:'all 0.3s', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px' }}>
+              <ShieldCheck size={16}/>
+              {saving ? 'Submitting…' : saved ? '✓ Submitted for Review!' : 'Submit for Verification'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Read-only view for pending/verified */}
+      {!canEdit && kyc && (
+        <div style={{ background:'white', borderRadius:'24px', padding:'32px', border:'1px solid #f1f5f9', boxShadow:'0 2px 8px rgba(0,0,0,0.04)' }}>
+          <h2 style={{ fontSize:'16px', fontWeight:'800', color:'#0f172a', marginBottom:'20px' }}>Submitted Documents</h2>
+          <div style={{ display:'flex', flexDirection:'column', gap:'14px' }}>
+            <Row label="ID Type"   value={ID_TYPES.find(t => t.value === kyc.govt_id_type)?.label || '—'}/>
+            <Row label="ID Number" value={kyc.govt_id_number || '—'}/>
+            {kyc.submitted_at && (
+              <Row label="Submitted" value={new Date(kyc.submitted_at).toLocaleDateString('en-IN', { day:'numeric', month:'long', year:'numeric' })}/>
+            )}
+          </div>
+          {kyc.id_front && (
+            <div style={{ marginTop:'20px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px' }}>
+              {[['ID Front', kyc.id_front], ['Selfie', kyc.selfie], kyc.id_back && ['ID Back', kyc.id_back]].filter(Boolean).map(([lbl, src]) => (
+                <div key={lbl}>
+                  <p style={{ fontSize:'12px', fontWeight:'700', color:'#94a3b8', marginBottom:'6px', textTransform:'uppercase' }}>{lbl}</p>
+                  <img src={src} alt={lbl} style={{ width:'100%', borderRadius:'12px', objectFit:'cover', maxHeight:'160px', border:'1px solid #f1f5f9' }}/>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Row({ label, value }) {
+  return (
+    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 0', borderBottom:'1px solid #f8fafc' }}>
+      <span style={{ fontSize:'13px', color:'#64748b' }}>{label}</span>
+      <span style={{ fontSize:'14px', fontWeight:'700', color:'#0f172a' }}>{value}</span>
     </div>
   )
 }

@@ -69,3 +69,45 @@ class ProviderProfile(models.Model):
 
     def __str__(self):
         return f'{self.user.full_name or self.user.phone} — Provider'
+
+
+class ProviderKYCDocument(models.Model):
+    AADHAAR         = 'aadhaar'
+    PAN             = 'pan'
+    DRIVING_LICENSE = 'driving_license'
+    PASSPORT        = 'passport'
+    ID_TYPE_CHOICES = [
+        (AADHAAR,         'Aadhaar Card'),
+        (PAN,             'PAN Card'),
+        (DRIVING_LICENSE, 'Driving License'),
+        (PASSPORT,        'Passport'),
+    ]
+
+    NOT_SUBMITTED  = 'not_submitted'
+    PENDING_REVIEW = 'pending_review'
+    VERIFIED       = 'verified'
+    REJECTED       = 'rejected'
+    STATUS_CHOICES = [
+        (NOT_SUBMITTED,  'Not Submitted'),
+        (PENDING_REVIEW, 'Pending Review'),
+        (VERIFIED,       'Verified'),
+        (REJECTED,       'Rejected'),
+    ]
+
+    provider         = models.OneToOneField(ProviderProfile, on_delete=models.CASCADE, related_name='kyc')
+    govt_id_type     = models.CharField(max_length=20, choices=ID_TYPE_CHOICES, blank=True)
+    govt_id_number   = models.CharField(max_length=50, blank=True)
+    id_front         = models.ImageField(upload_to='kyc/id/', blank=True, null=True)
+    id_back          = models.ImageField(upload_to='kyc/id/', blank=True, null=True)
+    selfie           = models.ImageField(upload_to='kyc/selfie/', blank=True, null=True)
+    kyc_status       = models.CharField(max_length=20, choices=STATUS_CHOICES, default=NOT_SUBMITTED)
+    rejection_reason = models.TextField(blank=True)
+    submitted_at     = models.DateTimeField(null=True, blank=True)
+    reviewed_at      = models.DateTimeField(null=True, blank=True)
+    reviewed_by      = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='kyc_reviews'
+    )
+
+    def __str__(self):
+        return f'KYC — {self.provider} [{self.kyc_status}]'

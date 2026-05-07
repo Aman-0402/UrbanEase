@@ -1,12 +1,14 @@
 import math
-from rest_framework import generics, filters, permissions
+from django.utils import timezone
+from rest_framework import generics, filters, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Category, Service, ProviderProfile
+from .models import Category, Service, ProviderProfile, ProviderKYCDocument
 from .serializers import (
     CategorySerializer, ServiceSerializer,
     ProviderListSerializer, ProviderDetailSerializer, ProviderUpdateSerializer,
+    KYCDocumentSerializer,
 )
 from .filters import ProviderFilter
 
@@ -115,3 +117,32 @@ class MyProviderProfileView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(ProviderDetailSerializer(profile).data)
+
+
+class MyKYCView(APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def _get_profile(self, request):
+        profile, _ = ProviderProfile.objects.get_or_create(user=request.user)
+        return profile
+
+    def get(self, request):
+        profile = self._get_profile(request)
+        kyc, _ = ProviderKYCDocument.objects.get_or_create(provider=profile)
+        return Response(KYCDocumentSerializer(kyc).data)
+
+    def put(self, request):
+        profile = self._get_profile(request)
+        kyc, _ = ProviderKYCDocument.objects.get_or_create(provider=profile)
+
+        if kyc.kyc_status == ProviderKYCDocument.VERIFIED:
+            return Response({'detail': 'KYC already verified. Contact support to update.'}, status=400)
+
+        serializer = KYCDocumentSerializer(kyc, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        kyc = serializer.save(
+            kyc_status=ProviderKYCDocument.PENDING_REVIEW,
+            submitted_at=timezone.now(),
+            rejection_reason='',
+        )
+        return Response(KYCDocumentSerializer(kyc).data, status=status.HTTP_200_OK)

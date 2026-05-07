@@ -8,13 +8,14 @@ import {
 } from 'lucide-react'
 import Logo from '../components/layout/Logo'
 import useAuthStore from '../store/authStore'
-import { getStats, getAdminUsers, toggleUserActive, getAdminBookings, getAdminProviders, toggleVerified } from '../api/admin'
+import { getStats, getAdminUsers, toggleUserActive, getAdminBookings, getAdminProviders, toggleVerified, getAdminKYCList, reviewKYC } from '../api/admin'
 
 const SECTIONS = [
   { key: 'overview',  icon: BarChart2,   label: 'Overview' },
   { key: 'users',     icon: Users,       label: 'Users' },
   { key: 'bookings',  icon: Calendar,    label: 'Bookings' },
   { key: 'providers', icon: ShieldCheck, label: 'Providers' },
+  { key: 'kyc',       icon: UserCheck,   label: 'KYC Review' },
 ]
 
 const STATUS_COLOR = {
@@ -68,11 +69,15 @@ export default function AdminPanel() {
   const [users,   setUsers]       = useState([])
   const [bookings,setBookings]    = useState([])
   const [providers,setProviders]  = useState([])
+  const [kycList, setKycList]     = useState([])
   const [loading, setLoading]     = useState(false)
   const [search,  setSearch]      = useState('')
   const [toggling,setToggling]    = useState(null)
   const [statusFilter, setStatusFilter] = useState('')
   const [roleFilter,   setRoleFilter]   = useState('')
+  const [kycFilter,    setKycFilter]    = useState('pending_review')
+  const [rejectModal,  setRejectModal]  = useState(null)  // kyc id being rejected
+  const [rejectReason, setRejectReason] = useState('')
 
   // Load stats once
   useEffect(() => {
@@ -95,10 +100,14 @@ export default function AdminPanel() {
       const params = {}
       if (search) params.search = search
       getAdminProviders(params).then(r => setProviders(r.data.results ?? r.data)).finally(() => setLoading(false))
+    } else if (section === 'kyc') {
+      const params = {}
+      if (kycFilter) params.kyc_status = kycFilter
+      getAdminKYCList(params).then(r => setKycList(r.data.results ?? r.data)).finally(() => setLoading(false))
     } else {
       setLoading(false)
     }
-  }, [section, search, roleFilter, statusFilter])
+  }, [section, search, roleFilter, statusFilter, kycFilter])
 
   useEffect(() => { loadSection() }, [loadSection])
 
@@ -115,6 +124,25 @@ export default function AdminPanel() {
     try {
       const res = await toggleVerified(id)
       setProviders(prev => prev.map(p => p.id === id ? res.data : p))
+    } finally { setToggling(null) }
+  }
+
+  async function handleKYCApprove(id) {
+    setToggling(id)
+    try {
+      const res = await reviewKYC(id, { action: 'approve' })
+      setKycList(prev => prev.map(k => k.id === id ? res.data : k))
+    } finally { setToggling(null) }
+  }
+
+  async function handleKYCReject() {
+    if (!rejectModal) return
+    setToggling(rejectModal)
+    try {
+      const res = await reviewKYC(rejectModal, { action: 'reject', rejection_reason: rejectReason })
+      setKycList(prev => prev.map(k => k.id === rejectModal ? res.data : k))
+      setRejectModal(null)
+      setRejectReason('')
     } finally { setToggling(null) }
   }
 
@@ -322,6 +350,147 @@ export default function AdminPanel() {
                   </tbody>
                 </table>
               </div>
+            </>
+          )}
+
+          {/* ── KYC REVIEW ── */}
+          {section === 'kyc' && (
+            <>
+              {/* Reject reason modal */}
+              {rejectModal && (
+                <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:100, display:'flex', alignItems:'center', justifyContent:'center' }}
+                  onClick={e => { if (e.target === e.currentTarget) { setRejectModal(null); setRejectReason('') } }}>
+                  <div style={{ background:'white', borderRadius:'20px', padding:'32px', width:'480px', maxWidth:'90vw' }}>
+                    <h3 style={{ fontSize:'16px', fontWeight:'800', color:'#0f172a', marginBottom:'8px' }}>Reject KYC</h3>
+                    <p style={{ fontSize:'13px', color:'#64748b', marginBottom:'16px' }}>Provide a reason so the provider knows what to fix and re-submit.</p>
+                    <textarea rows={4} value={rejectReason} onChange={e => setRejectReason(e.target.value)}
+                      placeholder="e.g. ID image is blurry, selfie does not clearly show the document…"
+                      style={{ width:'100%', padding:'12px', border:'2px solid #e5e7eb', borderRadius:'12px', fontSize:'13px', resize:'vertical', outline:'none', boxSizing:'border-box', fontFamily:'inherit' }}
+                      onFocus={e => e.target.style.borderColor='#dc2626'}
+                      onBlur={e => e.target.style.borderColor='#e5e7eb'}/>
+                    <div style={{ display:'flex', gap:'10px', marginTop:'16px', justifyContent:'flex-end' }}>
+                      <button onClick={() => { setRejectModal(null); setRejectReason('') }}
+                        style={{ padding:'10px 20px', borderRadius:'10px', border:'2px solid #e5e7eb', background:'white', color:'#64748b', fontWeight:'700', fontSize:'13px', cursor:'pointer' }}>
+                        Cancel
+                      </button>
+                      <button onClick={handleKYCReject} disabled={!rejectReason.trim() || toggling === rejectModal}
+                        style={{ padding:'10px 20px', borderRadius:'10px', border:'none', background:'#dc2626', color:'white', fontWeight:'700', fontSize:'13px', cursor:'pointer', opacity: (!rejectReason.trim() || toggling === rejectModal) ? 0.5 : 1 }}>
+                        {toggling === rejectModal ? 'Rejecting…' : 'Confirm Reject'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <h1 style={{ fontSize: '22px', fontWeight: '900', color: '#0f172a', margin: 0 }}>KYC Review</h1>
+                  <p style={{ color: '#64748b', fontSize: '14px', margin: '4px 0 0' }}>{kycList.length} submission{kycList.length !== 1 ? 's' : ''}</p>
+                </div>
+                <select value={kycFilter} onChange={e => setKycFilter(e.target.value)}
+                  style={{ padding: '10px 14px', border: '2px solid #e5e7eb', borderRadius: '11px', fontSize: '13px', color: '#374151', background: 'white', cursor: 'pointer', outline: 'none' }}>
+                  <option value="pending_review">Pending Review</option>
+                  <option value="verified">Verified</option>
+                  <option value="rejected">Rejected</option>
+                  <option value="">All</option>
+                </select>
+              </div>
+
+              {loading ? (
+                <div style={{ color:'#94a3b8', fontSize:'14px', padding:'40px 0', textAlign:'center' }}>Loading…</div>
+              ) : kycList.length === 0 ? (
+                <div style={{ textAlign:'center', padding:'60px 0', color:'#94a3b8' }}>
+                  <UserCheck size={40} style={{ marginBottom:'12px', opacity:0.3 }}/>
+                  <p style={{ margin:0 }}>No KYC submissions in this category</p>
+                </div>
+              ) : (
+                <div style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
+                  {kycList.map(kyc => {
+                    const isPending  = kyc.kyc_status === 'pending_review'
+                    const isVerified = kyc.kyc_status === 'verified'
+                    const isRejected = kyc.kyc_status === 'rejected'
+                    return (
+                      <motion.div key={kyc.id} initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }}
+                        style={{ background:'white', borderRadius:'20px', border:`1px solid ${isPending ? '#fde68a' : isVerified ? '#a7f3d0' : '#fecaca'}`, boxShadow:'0 2px 8px rgba(0,0,0,0.04)', overflow:'hidden' }}>
+                        <div style={{ height:'3px', background: isPending ? '#f59e0b' : isVerified ? '#059669' : '#dc2626' }}/>
+                        <div style={{ padding:'24px 28px' }}>
+                          <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:'16px', marginBottom:'20px' }}>
+                            <div>
+                              <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'4px' }}>
+                                <div style={{ width:'36px', height:'36px', borderRadius:'10px', background:'linear-gradient(135deg,#7c3aed,#4338ca)', display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontWeight:'800', fontSize:'14px' }}>
+                                  {(kyc.provider_name || '?').charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                  <div style={{ fontSize:'15px', fontWeight:'800', color:'#0f172a' }}>{kyc.provider_name || '—'}</div>
+                                  <div style={{ fontSize:'12px', color:'#94a3b8' }}>{kyc.provider_phone}</div>
+                                </div>
+                              </div>
+                            </div>
+                            <Badge
+                              label={isPending ? 'Pending Review' : isVerified ? 'Verified' : 'Rejected'}
+                              color={isPending ? '#d97706' : isVerified ? '#059669' : '#dc2626'}
+                            />
+                          </div>
+
+                          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'12px', marginBottom:'20px' }}>
+                            <div style={{ background:'#f8fafc', borderRadius:'10px', padding:'12px' }}>
+                              <div style={{ fontSize:'11px', color:'#94a3b8', marginBottom:'4px', fontWeight:'700', textTransform:'uppercase' }}>ID Type</div>
+                              <div style={{ fontSize:'13px', fontWeight:'700', color:'#0f172a' }}>{kyc.govt_id_type_display || '—'}</div>
+                            </div>
+                            <div style={{ background:'#f8fafc', borderRadius:'10px', padding:'12px' }}>
+                              <div style={{ fontSize:'11px', color:'#94a3b8', marginBottom:'4px', fontWeight:'700', textTransform:'uppercase' }}>ID Number</div>
+                              <div style={{ fontSize:'13px', fontWeight:'700', color:'#0f172a', letterSpacing:'0.5px' }}>{kyc.govt_id_number || '—'}</div>
+                            </div>
+                            <div style={{ background:'#f8fafc', borderRadius:'10px', padding:'12px' }}>
+                              <div style={{ fontSize:'11px', color:'#94a3b8', marginBottom:'4px', fontWeight:'700', textTransform:'uppercase' }}>Submitted</div>
+                              <div style={{ fontSize:'13px', fontWeight:'700', color:'#0f172a' }}>
+                                {kyc.submitted_at ? new Date(kyc.submitted_at).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) : '—'}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Document images */}
+                          <div style={{ display:'flex', gap:'12px', marginBottom:'20px', flexWrap:'wrap' }}>
+                            {[['ID Front', kyc.id_front], ['Selfie w/ ID', kyc.selfie], kyc.id_back && ['ID Back', kyc.id_back]].filter(Boolean).map(([lbl, src]) => (
+                              src ? (
+                                <div key={lbl} style={{ flex:'0 0 180px' }}>
+                                  <p style={{ fontSize:'11px', fontWeight:'700', color:'#94a3b8', marginBottom:'6px', textTransform:'uppercase' }}>{lbl}</p>
+                                  <a href={src} target="_blank" rel="noopener noreferrer">
+                                    <img src={src} alt={lbl} style={{ width:'180px', height:'120px', objectFit:'cover', borderRadius:'10px', border:'1px solid #f1f5f9', cursor:'pointer', transition:'opacity 0.15s' }}
+                                      onMouseOver={e => e.target.style.opacity='0.85'}
+                                      onMouseOut={e => e.target.style.opacity='1'}/>
+                                  </a>
+                                </div>
+                              ) : null
+                            ))}
+                          </div>
+
+                          {/* Rejection reason display */}
+                          {isRejected && kyc.rejection_reason && (
+                            <div style={{ background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'10px', padding:'12px 16px', marginBottom:'16px', fontSize:'13px', color:'#dc2626' }}>
+                              <strong>Rejection reason:</strong> {kyc.rejection_reason}
+                            </div>
+                          )}
+
+                          {/* Actions */}
+                          {isPending && (
+                            <div style={{ display:'flex', gap:'10px' }}>
+                              <button onClick={() => handleKYCApprove(kyc.id)} disabled={toggling === kyc.id}
+                                style={{ display:'flex', alignItems:'center', gap:'7px', padding:'10px 20px', background:'#ecfdf5', color:'#059669', border:'1.5px solid #a7f3d0', borderRadius:'10px', fontWeight:'700', fontSize:'13px', cursor: toggling === kyc.id ? 'wait' : 'pointer', transition:'all 0.2s' }}>
+                                <CheckCircle size={14}/> {toggling === kyc.id ? 'Processing…' : 'Approve & Verify'}
+                              </button>
+                              <button onClick={() => { setRejectModal(kyc.id); setRejectReason('') }} disabled={toggling === kyc.id}
+                                style={{ display:'flex', alignItems:'center', gap:'7px', padding:'10px 20px', background:'#fef2f2', color:'#dc2626', border:'1.5px solid #fecaca', borderRadius:'10px', fontWeight:'700', fontSize:'13px', cursor: toggling === kyc.id ? 'wait' : 'pointer', transition:'all 0.2s' }}>
+                                <XCircle size={14}/> Reject
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    )
+                  })}
+                </div>
+              )}
             </>
           )}
 

@@ -6,8 +6,8 @@ from django.db.models import Count, Sum, Avg
 from django.db.models.functions import TruncDate
 from apps.users.models import User
 from apps.users.serializers import UserSerializer
-from apps.services.models import ProviderProfile
-from apps.services.serializers import ProviderListSerializer
+from apps.services.models import ProviderProfile, ProviderKYCDocument
+from apps.services.serializers import ProviderListSerializer, AdminKYCSerializer
 from apps.bookings.models import Booking
 from apps.bookings.serializers import BookingListSerializer
 from .permissions import IsAdminUser
@@ -121,3 +121,46 @@ def toggle_provider_verified(request, pk):
     provider.is_verified = not provider.is_verified
     provider.save(update_fields=['is_verified'])
     return Response(ProviderListSerializer(provider).data)
+
+
+# ── KYC ──────────────────────────────────────────────────────────────────────
+
+class AdminKYCListView(generics.ListAPIView):
+    serializer_class   = AdminKYCSerializer
+    permission_classes = (IsAdminUser,)
+    filter_backends    = (DjangoFilterBackend, filters.OrderingFilter)
+    filterset_fields   = ('kyc_status',)
+    ordering_fields    = ('submitted_at', 'reviewed_at')
+    ordering           = ('-submitted_at',)
+
+    def get_queryset(self):
+        return ProviderKYCDocument.objects.select_related(
+            'provider__user'
+        ).exclude(kyc_status=ProviderKYCDocument.NOT_SUBMITTED)
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAdminUser])
+def admin_kyc_review(request, pk):
+    from django.utils import timezone
+    kyc = ProviderKYCDocument.objects.filter(pk=pk).first()
+    if not kyc:
+        return Response({'detail': 'Not found.'}, status=404)
+
+    action = request.data.get('action')
+    if action not in ('approve', 'reject'):
+        return Response({'detail': 'action must be "approve" or "reject".'}, status=400)
+
+    if action == 'approve':
+        kyc.kyc_status = ProviderKYCDocument.VERIFIED
+        kyc.rejection_reason = ''
+        kyc.provider.is_verified = True
+        kyc.provider.save(update_fields=['is_verified'])
+    else:
+        kyc.kyc_status = ProviderKYCDocument.REJECTED
+        kyc.rejection_reason = request.data.get('rejection_reason', 'Documents could not be verified.')
+
+    kyc.reviewed_at = timezone.now()
+    kyc.reviewed_by = request.user
+    kyc.save()
+    return Response(AdminKYCSerializer(kyc).data)

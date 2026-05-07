@@ -8,8 +8,8 @@ import { updateMe } from '../../api/auth'
 import Logo from './Logo'
 
 const NAV_LINKS = [
-  { label: 'Services',     to: '/services' },
-  { label: 'How it works', href: '/#how-it-works' },
+  { label: 'Services',     to: '/services',       roles: ['customer', null] },
+  { label: 'How it works', href: '/#how-it-works', roles: ['customer', null] },
 ]
 
 /* ── Profile Edit Modal ─────────────────────────────────────────────────── */
@@ -180,7 +180,7 @@ export default function Navbar() {
 
           {/* Nav links */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
-            {NAV_LINKS.map(({ label, to, href }) =>
+            {NAV_LINKS.filter(({ roles }) => roles.includes(user?.role ?? null)).map(({ label, to, href }) =>
               to ? (
                 <Link key={label} to={to}
                   style={{ fontSize: '14px', fontWeight: '500', color: linkColor, textDecoration: 'none', transition: 'color 0.2s' }}

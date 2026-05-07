@@ -8,4 +8,6 @@ urlpatterns = [
     path('admin-api/bookings/',                   views.AdminBookingListView.as_view(),  name='admin-bookings'),
     path('admin-api/providers/',                  views.AdminProviderListView.as_view(), name='admin-providers'),
     path('admin-api/providers/<int:pk>/verify/',  views.toggle_provider_verified,    name='admin-provider-verify'),
+    path('admin-api/kyc/',                        views.AdminKYCListView.as_view(),   name='admin-kyc-list'),
+    path('admin-api/kyc/<int:pk>/review/',        views.admin_kyc_review,            name='admin-kyc-review'),
 ]
