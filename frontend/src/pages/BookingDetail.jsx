@@ -4,8 +4,9 @@ import { motion } from 'framer-motion'
 import {
   ArrowLeft, Calendar, Clock, MapPin, IndianRupee, CheckCircle,
   AlertCircle, Star, CreditCard, XCircle, User, Briefcase, RefreshCw,
+  MessageCircle, TrendingDown, CheckCheck,
 } from 'lucide-react'
-import { getBookingDetail, cancelBooking, submitReview, getBookingReview } from '../api/bookings'
+import { getBookingDetail, cancelBooking, submitReview, getBookingReview, proposeNegotiation } from '../api/bookings'
 import { getPaymentStatus } from '../api/payments'
 import Navbar from '../components/layout/Navbar'
 import MockPaymentButton from '../components/RazorpayButton'
@@ -70,6 +71,13 @@ export default function BookingDetail() {
   // Pay inline
   const [payOpen, setPayOpen] = useState(false)
 
+  // Negotiate
+  const [negOpen,      setNegOpen]      = useState(false)
+  const [negPrice,     setNegPrice]     = useState('')
+  const [negNote,      setNegNote]      = useState('')
+  const [negSaving,    setNegSaving]    = useState(false)
+  const [negError,     setNegError]     = useState('')
+
   useEffect(() => {
     Promise.all([
       getBookingDetail(id),
@@ -105,6 +113,18 @@ export default function BookingDetail() {
     } finally { setReviewSaving(false) }
   }
 
+  async function handleNegotiate(e) {
+    e.preventDefault()
+    setNegSaving(true); setNegError('')
+    try {
+      const res = await proposeNegotiation(id, { proposed_price: negPrice, negotiation_note: negNote })
+      setBooking(res.data)
+      setNegOpen(false)
+    } catch (e) {
+      setNegError(e.response?.data?.detail || 'Could not submit negotiation.')
+    } finally { setNegSaving(false) }
+  }
+
   if (loading) return (
     <div style={{ minHeight:'100vh', background:'#f8fafc', fontFamily:'system-ui,-apple-system,sans-serif' }}>
       <Navbar/>
@@ -132,6 +152,11 @@ export default function BookingDetail() {
   const canCancel = booking.can_cancel
   const canReview = booking.status === 'completed' && !review
 
+  // Multi-service support: service may be null for new bookings with items[]
+  const primaryServiceName = booking.service?.name || booking.items?.[0]?.service_name || 'Service'
+  const canNegotiate = booking.status === 'pending' &&
+    (booking.negotiation_status === 'none' || booking.negotiation_status === 'declined')
+
   return (
     <div style={{ minHeight:'100vh', background:'#f8fafc', fontFamily:'system-ui,-apple-system,sans-serif' }}>
       <Navbar/>
@@ -147,7 +172,7 @@ export default function BookingDetail() {
           <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', flexWrap:'wrap', gap:'16px' }}>
             <div>
               <h1 style={{ fontSize:'clamp(20px,3vw,28px)', fontWeight:'900', color:'white', marginBottom:'6px' }}>
-                {booking.service.name}
+                {primaryServiceName}
               </h1>
               <p style={{ color:'rgba(255,255,255,0.65)', fontSize:'14px' }}>Booking #{booking.id}</p>
             </div>
@@ -166,7 +191,20 @@ export default function BookingDetail() {
 
           {/* Service + provider */}
           <Card title="Booking Details">
-            <Row icon={<Briefcase size={15} color="#7c3aed"/>} label="Service" value={booking.service.name}/>
+            {booking.items?.length > 0 ? (
+              <Row icon={<Briefcase size={15} color="#7c3aed"/>} label="Services" value={
+                <div style={{ display:'flex', flexDirection:'column', gap:'4px' }}>
+                  {booking.items.map(item => (
+                    <div key={item.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                      <span>{item.service_icon && <span style={{ marginRight:'5px' }}>{item.service_icon}</span>}{item.service_name}</span>
+                      <span style={{ color:'#7c3aed', fontWeight:'700', fontSize:'13px' }}>₹{parseFloat(item.unit_price).toLocaleString('en-IN')}</span>
+                    </div>
+                  ))}
+                </div>
+              }/>
+            ) : (
+              <Row icon={<Briefcase size={15} color="#7c3aed"/>} label="Service" value={primaryServiceName}/>
+            )}
             <Row icon={<User size={15} color="#7c3aed"/>}      label="Provider" value={
               <Link to={`/providers/${booking.provider.id}`} style={{ color:'#7c3aed', fontWeight:'700', textDecoration:'none' }}>
                 {booking.provider.full_name || 'Provider'}
@@ -206,6 +244,62 @@ export default function BookingDetail() {
               </div>
             )}
           </Card>
+
+          {/* Negotiation status */}
+          {booking.negotiation_status && booking.negotiation_status !== 'none' && (
+            <Card title="Price Negotiation">
+              {booking.negotiation_status === 'customer_proposed' && (
+                <div style={{ display:'flex', flexDirection:'column', gap:'12px' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 14px', borderRadius:'10px', background:'#fffbeb', border:'1px solid #fde68a' }}>
+                    <MessageCircle size={15} color="#d97706"/>
+                    <span style={{ fontSize:'13px', fontWeight:'700', color:'#92400e' }}>Negotiation pending — awaiting provider response</span>
+                  </div>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                    <span style={{ fontSize:'13px', color:'#64748b' }}>Your proposed price</span>
+                    <span style={{ display:'flex', alignItems:'center', gap:'2px', fontSize:'20px', fontWeight:'900', color:'#d97706' }}>
+                      <IndianRupee size={14} strokeWidth={2.5}/>
+                      {parseFloat(booking.proposed_price).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  {booking.negotiation_note && (
+                    <div style={{ padding:'10px 14px', background:'#f8fafc', borderRadius:'10px', fontSize:'13px', color:'#475569', fontStyle:'italic' }}>
+                      "{booking.negotiation_note}"
+                    </div>
+                  )}
+                  <div style={{ display:'flex', alignItems:'center', gap:'6px', fontSize:'12px', color:'#64748b' }}>
+                    <TrendingDown size={13}/>
+                    Saving ₹{(parseFloat(booking.total_price) - parseFloat(booking.proposed_price)).toLocaleString('en-IN')} vs original price
+                  </div>
+                </div>
+              )}
+              {booking.negotiation_status === 'accepted' && (
+                <div style={{ display:'flex', flexDirection:'column', gap:'12px' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 14px', borderRadius:'10px', background:'#ecfdf5', border:'1px solid #a7f3d0' }}>
+                    <CheckCheck size={15} color="#059669"/>
+                    <span style={{ fontSize:'13px', fontWeight:'700', color:'#065f46' }}>Provider accepted your negotiated price</span>
+                  </div>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                    <span style={{ fontSize:'13px', color:'#64748b' }}>Agreed price</span>
+                    <span style={{ display:'flex', alignItems:'center', gap:'2px', fontSize:'20px', fontWeight:'900', color:'#059669' }}>
+                      <IndianRupee size={14} strokeWidth={2.5}/>
+                      {parseFloat(booking.total_price).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </div>
+              )}
+              {booking.negotiation_status === 'declined' && (
+                <div style={{ display:'flex', flexDirection:'column', gap:'12px' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:'8px', padding:'10px 14px', borderRadius:'10px', background:'#fef2f2', border:'1px solid #fecaca' }}>
+                    <XCircle size={15} color="#ef4444"/>
+                    <span style={{ fontSize:'13px', fontWeight:'700', color:'#991b1b' }}>Provider declined your price proposal</span>
+                  </div>
+                  <p style={{ fontSize:'13px', color:'#64748b', margin:0 }}>
+                    The booking is still pending. You can submit a new negotiation or proceed at the original price of ₹{parseFloat(booking.total_price).toLocaleString('en-IN')}.
+                  </p>
+                </div>
+              )}
+            </Card>
+          )}
 
           {/* Status timeline */}
           {booking.logs?.length > 0 && (
@@ -287,9 +381,17 @@ export default function BookingDetail() {
                 <Star size={15}/> Leave a Review
               </button>
             )}
+            {canNegotiate && (
+              <button onClick={() => { setNegPrice(parseFloat(booking.total_price).toString()); setNegOpen(true) }}
+                style={{ width:'100%', padding:'12px', background:'#fffbeb', color:'#92400e', border:'2px solid #fde68a', borderRadius:'12px', fontWeight:'800', fontSize:'14px', cursor:'pointer', marginBottom:'10px', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px', transition:'all 0.2s' }}
+                onMouseOver={e=>e.currentTarget.style.background='#fef3c7'}
+                onMouseOut={e=>e.currentTarget.style.background='#fffbeb'}>
+                <MessageCircle size={15}/> {booking.negotiation_status === 'declined' ? 'Re-negotiate Price' : 'Negotiate Price'}
+              </button>
+            )}
             {booking.status === 'completed' && (
               <Link
-                to={`/book/${booking.provider.id}?service=${booking.service.id}`}
+                to={`/book/${booking.provider.id}`}
                 state={{ rebook: true, prefill: { address: booking.address, city: booking.city, pincode: booking.pincode, notes: booking.notes } }}
                 style={{ width:'100%', padding:'12px', background:'#faf5ff', color:'#7c3aed', border:'2px solid #ddd6fe', borderRadius:'12px', fontWeight:'800', fontSize:'14px', cursor:'pointer', marginBottom:'10px', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px', textDecoration:'none', transition:'all 0.2s' }}
                 onMouseOver={e=>e.currentTarget.style.background='#ede9fe'}
@@ -306,12 +408,60 @@ export default function BookingDetail() {
                 {cancelling ? 'Cancelling…' : 'Cancel Booking'}
               </button>
             )}
-            {!canReview && !canCancel && booking.status !== 'completed' && (
+            {!canReview && !canCancel && !canNegotiate && booking.status !== 'completed' && (
               <p style={{ fontSize:'13px', color:'#94a3b8', textAlign:'center', margin:0 }}>No actions available</p>
             )}
           </Card>
         </div>
       </div>
+
+      {/* Negotiate Modal */}
+      {negOpen && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', zIndex:999, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' }}
+          onClick={e=>{ if(e.target===e.currentTarget) setNegOpen(false) }}>
+          <motion.div initial={{scale:0.92,opacity:0}} animate={{scale:1,opacity:1}} transition={{duration:0.18}}
+            style={{ background:'white', borderRadius:'20px', width:'100%', maxWidth:'440px', padding:'32px', boxShadow:'0 20px 60px rgba(0,0,0,0.2)' }}>
+            <h2 style={{ fontSize:'20px', fontWeight:'800', color:'#0f172a', marginBottom:'4px' }}>
+              {booking.negotiation_status === 'declined' ? 'Re-negotiate Price' : 'Propose a Price'}
+            </h2>
+            <p style={{ fontSize:'13px', color:'#64748b', marginBottom:'24px' }}>
+              Original price: ₹{parseFloat(booking.total_price).toLocaleString('en-IN')}. Suggest a fair price and the provider will accept or decline.
+            </p>
+            <form onSubmit={handleNegotiate} style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
+              <div>
+                <label style={{ display:'block', fontSize:'12px', fontWeight:'700', color:'#374151', textTransform:'uppercase', letterSpacing:'0.4px', marginBottom:'6px' }}>Your Proposed Price (₹)</label>
+                <input type="number" value={negPrice} onChange={e=>setNegPrice(e.target.value)} required min="1"
+                  placeholder={parseFloat(booking.total_price).toString()}
+                  style={{ width:'100%', boxSizing:'border-box', padding:'12px 14px', border:'2px solid #e5e7eb', borderRadius:'11px', fontSize:'16px', fontWeight:'700', color:'#0f172a', outline:'none' }}
+                  onFocus={e=>e.target.style.borderColor='#f59e0b'} onBlur={e=>e.target.style.borderColor='#e5e7eb'}/>
+                {negPrice && parseFloat(negPrice) < parseFloat(booking.total_price) && (
+                  <p style={{ fontSize:'12px', color:'#059669', marginTop:'6px', display:'flex', alignItems:'center', gap:'4px' }}>
+                    <TrendingDown size={12}/> Saving ₹{(parseFloat(booking.total_price) - parseFloat(negPrice)).toLocaleString('en-IN')}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label style={{ display:'block', fontSize:'12px', fontWeight:'700', color:'#374151', textTransform:'uppercase', letterSpacing:'0.4px', marginBottom:'6px' }}>Message to provider (optional)</label>
+                <textarea value={negNote} onChange={e=>setNegNote(e.target.value)} rows={3}
+                  placeholder="Explain why you're proposing this price…"
+                  style={{ width:'100%', boxSizing:'border-box', padding:'12px 14px', border:'2px solid #e5e7eb', borderRadius:'11px', fontSize:'14px', color:'#0f172a', outline:'none', resize:'vertical', fontFamily:'system-ui,-apple-system,sans-serif' }}
+                  onFocus={e=>e.target.style.borderColor='#f59e0b'} onBlur={e=>e.target.style.borderColor='#e5e7eb'}/>
+              </div>
+              {negError && <p style={{ color:'#dc2626', fontSize:'12px', margin:0 }}>{negError}</p>}
+              <div style={{ display:'flex', gap:'10px' }}>
+                <button type="button" onClick={()=>setNegOpen(false)}
+                  style={{ flex:1, padding:'12px', border:'2px solid #e5e7eb', borderRadius:'12px', fontWeight:'700', fontSize:'14px', color:'#374151', background:'white', cursor:'pointer' }}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={negSaving}
+                  style={{ flex:2, padding:'12px', background:negSaving?'#e5e7eb':'linear-gradient(135deg,#d97706,#b45309)', color:negSaving?'#9ca3af':'white', border:'none', borderRadius:'12px', fontWeight:'800', fontSize:'14px', cursor:negSaving?'wait':'pointer' }}>
+                  {negSaving ? 'Submitting…' : 'Send Proposal'}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
 
       {/* Review Modal */}
       {reviewOpen && (

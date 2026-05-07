@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.utils import timezone
-from .models import Booking, BookingStatusLog
+from .models import Booking, BookingItem, BookingStatusLog
+from apps.services.models import ProviderService
 from apps.services.serializers import ServiceSerializer, ProviderListSerializer
 
 
@@ -12,62 +13,126 @@ class BookingStatusLogSerializer(serializers.ModelSerializer):
         fields = ('id', 'from_status', 'to_status', 'changed_by_name', 'note', 'created_at')
 
 
-class BookingCreateSerializer(serializers.ModelSerializer):
+class BookingItemSerializer(serializers.ModelSerializer):
+    service_name = serializers.CharField(source='service.name',          read_only=True)
+    service_icon = serializers.CharField(source='service.category.icon', read_only=True)
+
     class Meta:
-        model = Booking
+        model  = BookingItem
+        fields = ('id', 'service_name', 'service_icon', 'unit_price')
+
+
+class BookingCreateSerializer(serializers.ModelSerializer):
+    # Accepts a list of service IDs: [1, 2, 3]
+    services = serializers.ListField(
+        child=serializers.IntegerField(), write_only=True, min_length=1,
+    )
+    proposed_price   = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
+    negotiation_note = serializers.CharField(required=False, allow_blank=True, default='')
+
+    class Meta:
+        model  = Booking
         fields = (
-            'provider', 'service', 'scheduled_date', 'scheduled_time',
+            'provider', 'services', 'scheduled_date', 'scheduled_time',
             'address', 'city', 'pincode', 'notes',
+            'proposed_price', 'negotiation_note',
         )
 
     def validate(self, data):
-        provider = data['provider']
-        service  = data['service']
+        from datetime import date
+        provider      = data['provider']
+        service_ids   = data['services']
 
-        # Provider must offer this service
-        if not provider.services.filter(pk=service.pk).exists():
-            raise serializers.ValidationError('This provider does not offer the selected service.')
+        if not provider.is_available:
+            raise serializers.ValidationError('This provider is currently unavailable.')
 
-        # Cannot book in the past
-        from datetime import datetime, date
         if data['scheduled_date'] < date.today():
             raise serializers.ValidationError('Scheduled date cannot be in the past.')
 
-        # Provider must be available
-        if not provider.is_available:
-            raise serializers.ValidationError('This provider is currently unavailable.')
+        # Verify every requested service is offered by this provider
+        offered_ids = set(provider.provider_services.values_list('service_id', flat=True))
+        bad = [sid for sid in service_ids if sid not in offered_ids]
+        if bad:
+            raise serializers.ValidationError(
+                f'Provider does not offer service(s) with id: {bad}.'
+            )
 
         return data
 
     def create(self, validated_data):
-        request = self.context['request']
-        service = validated_data['service']
+        service_ids      = validated_data.pop('services')
+        proposed_price   = validated_data.pop('proposed_price', None)
+        negotiation_note = validated_data.pop('negotiation_note', '')
+        request          = self.context['request']
+        provider         = validated_data['provider']
+
+        # Resolve effective price per service
+        ps_map = {
+            ps.service_id: (ps.custom_price if ps.custom_price is not None else ps.service.base_price)
+            for ps in provider.provider_services.select_related('service').filter(service_id__in=service_ids)
+        }
+        total = sum(ps_map[sid] for sid in service_ids)
+
+        neg_status = Booking.NEG_PROPOSED if proposed_price else Booking.NEG_NONE
+
         booking = Booking.objects.create(
             customer=request.user,
-            total_price=service.base_price,
+            total_price=total,
+            proposed_price=proposed_price,
+            negotiation_status=neg_status,
+            negotiation_note=negotiation_note,
             **validated_data,
         )
+        BookingItem.objects.bulk_create([
+            BookingItem(booking=booking, service_id=sid, unit_price=ps_map[sid])
+            for sid in service_ids
+        ])
         return booking
 
 
 class BookingListSerializer(serializers.ModelSerializer):
-    service_name     = serializers.CharField(source='service.name', read_only=True)
-    service_icon     = serializers.CharField(source='service.category.icon', read_only=True)
-    service_id       = serializers.IntegerField(source='service.id', read_only=True)
-    provider_name    = serializers.SerializerMethodField()
-    provider_id      = serializers.IntegerField(source='provider.id', read_only=True)
-    customer_name    = serializers.SerializerMethodField()
-    status_display   = serializers.CharField(source='get_status_display', read_only=True)
-    scheduled_time   = serializers.TimeField(format='%H:%M')
+    # For legacy single-service bookings: fall back to Booking.service
+    # For new multi-service bookings: derive from items
+    service_name   = serializers.SerializerMethodField()
+    service_icon   = serializers.SerializerMethodField()
+    service_id     = serializers.SerializerMethodField()
+    items          = BookingItemSerializer(many=True, read_only=True)
+    provider_name  = serializers.SerializerMethodField()
+    provider_id    = serializers.IntegerField(source='provider.id', read_only=True)
+    customer_name  = serializers.SerializerMethodField()
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    scheduled_time = serializers.TimeField(format='%H:%M')
 
     class Meta:
         model = Booking
         fields = (
-            'id', 'service_name', 'service_icon', 'service_id',
+            'id', 'service_name', 'service_icon', 'service_id', 'items',
             'provider_name', 'provider_id', 'customer_name',
             'status', 'status_display', 'scheduled_date', 'scheduled_time',
-            'total_price', 'address', 'city', 'pincode', 'created_at',
+            'total_price', 'proposed_price', 'negotiation_status', 'negotiation_note',
+            'address', 'city', 'pincode', 'created_at',
         )
+
+    def get_service_name(self, obj):
+        if obj.service_id:
+            return obj.service.name
+        first = obj.items.first()
+        if not first:
+            return '—'
+        rest = obj.items.count() - 1
+        return first.service.name + (f' +{rest} more' if rest else '')
+
+    def get_service_icon(self, obj):
+        if obj.service_id:
+            return obj.service.category.icon
+        first = obj.items.select_related('service__category').first()
+        return first.service.category.icon if first else 'wrench'
+
+    def get_service_id(self, obj):
+        if obj.service_id:
+            return obj.service_id
+        first = obj.items.first()
+        return first.service_id if first else None
 
     def get_provider_name(self, obj):
         return obj.provider.user.full_name or obj.provider.user.phone
@@ -78,6 +143,7 @@ class BookingListSerializer(serializers.ModelSerializer):
 
 class BookingDetailSerializer(serializers.ModelSerializer):
     service        = ServiceSerializer(read_only=True)
+    items          = BookingItemSerializer(many=True, read_only=True)
     provider       = ProviderListSerializer(read_only=True)
     logs           = BookingStatusLogSerializer(many=True, read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
@@ -87,10 +153,10 @@ class BookingDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Booking
         fields = (
-            'id', 'service', 'provider', 'status', 'status_display',
+            'id', 'service', 'items', 'provider', 'status', 'status_display',
             'scheduled_date', 'scheduled_time', 'address', 'city', 'pincode',
-            'notes', 'total_price', 'can_cancel',
-            'created_at', 'confirmed_at', 'completed_at', 'cancelled_at',
+            'notes', 'total_price', 'proposed_price', 'negotiation_status', 'negotiation_note',
+            'can_cancel', 'created_at', 'confirmed_at', 'completed_at', 'cancelled_at',
             'cancel_reason', 'logs',
         )
 

@@ -14,6 +14,7 @@ import {
   getProviderBookings, updateBookingStatus,
   getMyKYC, submitKYC,
 } from '../api/provider'
+import { respondNegotiation } from '../api/bookings'
 import { getServices } from '../api/services'
 
 const STATUS_META = {
@@ -67,8 +68,9 @@ export default function ProviderDashboard() {
   const [bookings,  setBookings]    = useState([])
   const [loading,   setLoading]     = useState(true)
   const [activeTab, setActiveTab]   = useState('')
-  const [updating,  setUpdating]    = useState(null)
-  const [togglingAvail, setTogglingAvail] = useState(false)
+  const [updating,         setUpdating]         = useState(null)
+  const [negotiatingId,    setNegotiatingId]    = useState(null)
+  const [togglingAvail,    setTogglingAvail]    = useState(false)
   const [activeSection, setActiveSection] = useState('bookings') // bookings | profile
 
   const fetchAll = useCallback(() => {
@@ -94,6 +96,18 @@ export default function ProviderDashboard() {
       alert(err.response?.data?.detail || 'Action failed.')
     } finally {
       setUpdating(null)
+    }
+  }
+
+  async function handleNegotiationResponse(bookingId, action) {
+    setNegotiatingId(bookingId + action)
+    try {
+      await respondNegotiation(bookingId, { action })
+      fetchAll()
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Action failed.')
+    } finally {
+      setNegotiatingId(null)
     }
   }
 
@@ -295,6 +309,55 @@ export default function ProviderDashboard() {
                                     <MapPin size={13}/> {b.city || '—'}
                                   </span>
                                 </div>
+
+                                {/* ── Negotiation card ── */}
+                                {b.negotiation_status === 'customer_proposed' && (
+                                  <div style={{ background:'#fffbeb', border:'2px solid #fde68a', borderRadius:'14px', padding:'16px', marginBottom:'14px' }}>
+                                    <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'10px' }}>
+                                      <span style={{ fontSize:'16px' }}>💬</span>
+                                      <span style={{ fontSize:'13px', fontWeight:'800', color:'#92400e' }}>Price Negotiation Request</span>
+                                    </div>
+                                    <div style={{ display:'flex', alignItems:'baseline', gap:'8px', marginBottom:'6px' }}>
+                                      <span style={{ fontSize:'12px', color:'#78350f' }}>Customer proposes:</span>
+                                      <span style={{ fontSize:'20px', fontWeight:'900', color:'#92400e' }}>₹{parseFloat(b.proposed_price).toLocaleString('en-IN')}</span>
+                                      <span style={{ fontSize:'12px', color:'#a16207' }}>
+                                        (listed ₹{parseFloat(b.total_price).toLocaleString('en-IN')})
+                                      </span>
+                                    </div>
+                                    {b.negotiation_note && (
+                                      <p style={{ fontSize:'12px', color:'#78350f', background:'#fef3c7', padding:'8px 12px', borderRadius:'8px', margin:'0 0 12px', fontStyle:'italic' }}>
+                                        "{b.negotiation_note}"
+                                      </p>
+                                    )}
+                                    <div style={{ display:'flex', gap:'10px' }}>
+                                      <button
+                                        onClick={() => handleNegotiationResponse(b.id, 'accept')}
+                                        disabled={!!negotiatingId}
+                                        style={{ display:'flex', alignItems:'center', gap:'6px', padding:'9px 18px', background:'#ecfdf5', color:'#059669', border:'1.5px solid #6ee7b7', borderRadius:'10px', fontWeight:'800', fontSize:'13px', cursor: negotiatingId ? 'wait' : 'pointer', transition:'all 0.2s' }}>
+                                        <CheckCircle size={13}/> {negotiatingId === b.id+'accept' ? 'Accepting…' : `Accept ₹${parseFloat(b.proposed_price).toLocaleString('en-IN')}`}
+                                      </button>
+                                      <button
+                                        onClick={() => handleNegotiationResponse(b.id, 'decline')}
+                                        disabled={!!negotiatingId}
+                                        style={{ display:'flex', alignItems:'center', gap:'6px', padding:'9px 18px', background:'#fef2f2', color:'#dc2626', border:'1.5px solid #fca5a5', borderRadius:'10px', fontWeight:'800', fontSize:'13px', cursor: negotiatingId ? 'wait' : 'pointer', transition:'all 0.2s' }}>
+                                        <XCircle size={13}/> {negotiatingId === b.id+'decline' ? 'Declining…' : 'Decline'}
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Negotiation result badge */}
+                                {(b.negotiation_status === 'accepted' || b.negotiation_status === 'declined') && (
+                                  <div style={{ display:'inline-flex', alignItems:'center', gap:'6px', padding:'6px 12px', borderRadius:'20px', fontSize:'12px', fontWeight:'700', marginBottom:'12px',
+                                    background: b.negotiation_status === 'accepted' ? '#ecfdf5' : '#fef2f2',
+                                    color:      b.negotiation_status === 'accepted' ? '#059669'  : '#dc2626',
+                                    border:     `1px solid ${b.negotiation_status === 'accepted' ? '#a7f3d0' : '#fecaca'}`,
+                                  }}>
+                                    {b.negotiation_status === 'accepted'
+                                      ? `✓ Price negotiated — ₹${parseFloat(b.proposed_price).toLocaleString('en-IN')}`
+                                      : '✗ Price negotiation declined'}
+                                  </div>
+                                )}
 
                                 {/* Action buttons */}
                                 {actions.length > 0 && (

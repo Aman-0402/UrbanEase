@@ -188,6 +188,55 @@ def provider_earnings(request):
     })
 
 
+@api_view(['PATCH'])
+@permission_classes([permissions.IsAuthenticated])
+def propose_negotiation(request, pk):
+    """Customer proposes a custom price on a pending booking."""
+    booking = get_object_or_404(Booking, pk=pk, customer=request.user)
+    if booking.status != Booking.PENDING:
+        return Response({'detail': 'Can only negotiate pending bookings.'}, status=400)
+
+    proposed = request.data.get('proposed_price')
+    if not proposed:
+        return Response({'detail': 'proposed_price is required.'}, status=400)
+
+    booking.proposed_price     = proposed
+    booking.negotiation_note   = request.data.get('negotiation_note', '')
+    booking.negotiation_status = Booking.NEG_PROPOSED
+    booking.save(update_fields=['proposed_price', 'negotiation_note', 'negotiation_status'])
+    return Response(BookingDetailSerializer(booking).data)
+
+
+@api_view(['PATCH'])
+@permission_classes([permissions.IsAuthenticated])
+def respond_negotiation(request, pk):
+    """Provider accepts or declines a customer's price proposal."""
+    booking = get_object_or_404(Booking, pk=pk, provider__user=request.user)
+    if booking.negotiation_status != Booking.NEG_PROPOSED:
+        return Response({'detail': 'No pending negotiation on this booking.'}, status=400)
+
+    action = request.data.get('action')
+    if action == 'accept':
+        old_status             = booking.status
+        booking.negotiation_status = Booking.NEG_ACCEPTED
+        booking.total_price    = booking.proposed_price
+        booking.status         = Booking.CONFIRMED
+        booking.confirmed_at   = timezone.now()
+        booking.save()
+        BookingStatusLog.objects.create(
+            booking=booking, from_status=old_status, to_status=Booking.CONFIRMED,
+            changed_by=request.user,
+            note=f'Accepted negotiated price ₹{booking.proposed_price}',
+        )
+    elif action == 'decline':
+        booking.negotiation_status = Booking.NEG_DECLINED
+        booking.save(update_fields=['negotiation_status'])
+    else:
+        return Response({'detail': 'action must be "accept" or "decline".'}, status=400)
+
+    return Response(BookingDetailSerializer(booking).data)
+
+
 class BookingCancelView(APIView):
     """Shortcut — customer cancels their own booking."""
     permission_classes = (permissions.IsAuthenticated,)
