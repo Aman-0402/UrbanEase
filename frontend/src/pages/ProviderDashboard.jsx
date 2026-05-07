@@ -5,6 +5,7 @@ import {
   LogOut, Star, Briefcase, IndianRupee, Calendar, Clock, MapPin,
   CheckCircle, ChevronRight, TrendingUp, Bell, Settings, User,
   PlayCircle, XCircle, AlertCircle, ToggleLeft, ToggleRight, Edit3,
+  Search, X,
 } from 'lucide-react'
 import Logo from '../components/layout/Logo'
 import useAuthStore from '../store/authStore'
@@ -12,6 +13,7 @@ import {
   getMyProfile, updateMyProfile,
   getProviderBookings, updateBookingStatus,
 } from '../api/provider'
+import { getServices } from '../api/services'
 
 const STATUS_META = {
   pending:     { label:'Pending',     color:'#f59e0b', bg:'#fefce8', border:'#fde68a' },
@@ -344,6 +346,29 @@ function ProfileEditor({ profile, onSaved }) {
   const [error,   setError]   = useState('')
   const [focused, setFocused] = useState('')
 
+  // Service management
+  const [allServices,      setAllServices]      = useState([])
+  const [selectedServices, setSelectedServices] = useState(
+    (profile.services || []).map(s => s.id)
+  )
+  const [serviceSearch, setServiceSearch] = useState('')
+
+  useEffect(() => {
+    getServices().then(r => setAllServices(r.data.results ?? r.data))
+  }, [])
+
+  const filteredServices = allServices.filter(s =>
+    s.name.toLowerCase().includes(serviceSearch.toLowerCase()) ||
+    s.category_name?.toLowerCase().includes(serviceSearch.toLowerCase())
+  )
+
+  function toggleService(id) {
+    setSelectedServices(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    )
+    setSaved(false)
+  }
+
   function handle(e) {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }))
     setSaved(false)
@@ -354,7 +379,7 @@ function ProfileEditor({ profile, onSaved }) {
     e.preventDefault()
     setSaving(true)
     try {
-      const res = await updateMyProfile(form)
+      const res = await updateMyProfile({ ...form, services: selectedServices })
       onSaved(res.data)
       setSaved(true)
     } catch (err) {
@@ -374,11 +399,21 @@ function ProfileEditor({ profile, onSaved }) {
     },
   })
 
+  // Group services by category
+  const grouped = filteredServices.reduce((acc, s) => {
+    const cat = s.category_name || 'Other'
+    if (!acc[cat]) acc[cat] = []
+    acc[cat].push(s)
+    return acc
+  }, {})
+
   return (
-    <div style={{ display:'grid', gridTemplateColumns:'1fr 280px', gap:'24px', alignItems:'start' }}>
+    <div style={{ display:'flex', flexDirection:'column', gap:'24px' }}>
+
+      {/* ── Basic info form ── */}
       <form onSubmit={save}>
         <div style={{ background:'white', borderRadius:'24px', padding:'32px', border:'1px solid #f1f5f9', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', display:'flex', flexDirection:'column', gap:'20px' }}>
-          <h2 style={{ fontSize:'16px', fontWeight:'800', color:'#0f172a', margin:0 }}>Edit Profile</h2>
+          <h2 style={{ fontSize:'16px', fontWeight:'800', color:'#0f172a', margin:0 }}>Basic Info</h2>
 
           <div>
             <label style={{ display:'block', fontSize:'13px', fontWeight:'700', color:'#374151', marginBottom:'8px' }}>Bio</label>
@@ -408,14 +443,106 @@ function ProfileEditor({ profile, onSaved }) {
           )}
 
           <button type="submit" disabled={saving}
-            style={{ padding:'14px', background:'linear-gradient(135deg,#7c3aed,#4338ca)', color:'white', border:'none', borderRadius:'14px', fontWeight:'800', fontSize:'14px', cursor: saving ? 'wait' : 'pointer', boxShadow:'0 4px 16px rgba(124,58,237,0.3)', opacity: saving ? 0.75 : 1, transition:'all 0.2s' }}>
-            {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Changes'}
+            style={{ padding:'14px', background: saved ? 'linear-gradient(135deg,#059669,#047857)' : 'linear-gradient(135deg,#7c3aed,#4338ca)', color:'white', border:'none', borderRadius:'14px', fontWeight:'800', fontSize:'14px', cursor: saving ? 'wait' : 'pointer', boxShadow:'0 4px 16px rgba(124,58,237,0.3)', opacity: saving ? 0.75 : 1, transition:'all 0.3s' }}>
+            {saving ? 'Saving…' : saved ? '✓ Saved!' : 'Save Changes'}
           </button>
         </div>
       </form>
 
+      {/* ── Services I offer ── */}
+      <div style={{ background:'white', borderRadius:'24px', padding:'32px', border:'1px solid #f1f5f9', boxShadow:'0 2px 8px rgba(0,0,0,0.04)' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'6px' }}>
+          <h2 style={{ fontSize:'16px', fontWeight:'800', color:'#0f172a', margin:0 }}>Services I Offer</h2>
+          <span style={{ fontSize:'12px', fontWeight:'700', padding:'4px 10px', borderRadius:'20px', background:'#f5f3ff', color:'#7c3aed' }}>
+            {selectedServices.length} selected
+          </span>
+        </div>
+        <p style={{ fontSize:'13px', color:'#64748b', marginBottom:'20px' }}>
+          Select every service you can perform. Customers filter providers by service, so keeping this up-to-date gets you more bookings.
+        </p>
+
+        {/* Search */}
+        <div style={{ display:'flex', alignItems:'center', gap:'10px', padding:'10px 14px', border:'2px solid #e5e7eb', borderRadius:'12px', marginBottom:'20px', transition:'border 0.2s' }}
+          onFocusCapture={e=>e.currentTarget.style.borderColor='#7c3aed'}
+          onBlurCapture={e=>e.currentTarget.style.borderColor='#e5e7eb'}>
+          <Search size={15} color="#94a3b8" style={{ flexShrink:0 }}/>
+          <input value={serviceSearch} onChange={e=>setServiceSearch(e.target.value)}
+            placeholder="Search services…"
+            style={{ border:'none', outline:'none', fontSize:'14px', color:'#0f172a', background:'transparent', flex:1 }}/>
+          {serviceSearch && (
+            <button onClick={()=>setServiceSearch('')} style={{ background:'none', border:'none', cursor:'pointer', color:'#94a3b8', display:'flex', padding:'2px' }}>
+              <X size={14}/>
+            </button>
+          )}
+        </div>
+
+        {/* Selected chips row */}
+        {selectedServices.length > 0 && (
+          <div style={{ display:'flex', flexWrap:'wrap', gap:'8px', marginBottom:'20px', padding:'16px', background:'#f5f3ff', borderRadius:'14px', border:'1px solid #ddd6fe' }}>
+            {selectedServices.map(id => {
+              const svc = allServices.find(s => s.id === id)
+              if (!svc) return null
+              return (
+                <span key={id} style={{ display:'inline-flex', alignItems:'center', gap:'6px', padding:'5px 12px', background:'white', border:'1.5px solid #ddd6fe', borderRadius:'100px', fontSize:'12px', fontWeight:'700', color:'#7c3aed' }}>
+                  {svc.name}
+                  <button onClick={()=>toggleService(id)} style={{ background:'none', border:'none', cursor:'pointer', color:'#a78bfa', display:'flex', padding:'0', lineHeight:1 }}>
+                    <X size={12}/>
+                  </button>
+                </span>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Service list grouped by category */}
+        {Object.keys(grouped).length === 0 ? (
+          <p style={{ textAlign:'center', color:'#94a3b8', fontSize:'13px', padding:'20px 0' }}>No services match your search.</p>
+        ) : (
+          Object.entries(grouped).map(([cat, services]) => (
+            <div key={cat} style={{ marginBottom:'20px' }}>
+              <p style={{ fontSize:'11px', fontWeight:'800', color:'#94a3b8', textTransform:'uppercase', letterSpacing:'0.8px', marginBottom:'10px' }}>{cat}</p>
+              <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+                {services.map(svc => {
+                  const selected = selectedServices.includes(svc.id)
+                  return (
+                    <motion.div key={svc.id}
+                      whileTap={{ scale:0.98 }}
+                      onClick={() => toggleService(svc.id)}
+                      style={{ display:'flex', alignItems:'center', gap:'14px', padding:'14px 16px', borderRadius:'14px', border:`2px solid ${selected ? '#7c3aed' : '#f1f5f9'}`, background: selected ? '#faf5ff' : 'white', cursor:'pointer', transition:'all 0.15s', userSelect:'none' }}>
+                      {/* Checkbox */}
+                      <div style={{ width:'20px', height:'20px', borderRadius:'6px', border:`2px solid ${selected ? '#7c3aed' : '#d1d5db'}`, background: selected ? '#7c3aed' : 'white', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, transition:'all 0.15s' }}>
+                        {selected && <CheckCircle size={13} color="white" strokeWidth={3}/>}
+                      </div>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:'14px', fontWeight: selected ? '700' : '600', color: selected ? '#6d28d9' : '#0f172a' }}>{svc.name}</div>
+                        <div style={{ fontSize:'11px', color:'#94a3b8', marginTop:'2px' }}>Base ₹{parseFloat(svc.base_price).toLocaleString('en-IN')} · {svc.duration_display}</div>
+                      </div>
+                      {selected && (
+                        <span style={{ fontSize:'11px', fontWeight:'700', color:'#7c3aed', background:'#ede9fe', padding:'3px 8px', borderRadius:'20px' }}>Added</span>
+                      )}
+                    </motion.div>
+                  )
+                })}
+              </div>
+            </div>
+          ))
+        )}
+
+        {/* Note about missing services */}
+        <div style={{ marginTop:'16px', padding:'14px 16px', background:'#f8fafc', borderRadius:'12px', border:'1px solid #e5e7eb' }}>
+          <p style={{ fontSize:'12px', color:'#64748b', margin:0, lineHeight:1.6 }}>
+            💡 <strong>Don't see your service?</strong> Services are managed by the platform admin. Contact support to have a new service category added.
+          </p>
+        </div>
+
+        <button onClick={save} disabled={saving}
+          style={{ marginTop:'20px', width:'100%', padding:'14px', background: saved ? 'linear-gradient(135deg,#059669,#047857)' : 'linear-gradient(135deg,#7c3aed,#4338ca)', color:'white', border:'none', borderRadius:'14px', fontWeight:'800', fontSize:'14px', cursor: saving ? 'wait' : 'pointer', boxShadow:'0 4px 16px rgba(124,58,237,0.3)', transition:'all 0.3s' }}>
+          {saving ? 'Saving…' : saved ? '✓ Services Saved!' : `Save Services (${selectedServices.length} selected)`}
+        </button>
+      </div>
+
       {/* Stats card */}
-      <div style={{ background:'white', borderRadius:'24px', padding:'28px', border:'1px solid #f1f5f9', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', position:'sticky', top:'24px' }}>
+      <div style={{ background:'white', borderRadius:'24px', padding:'28px', border:'1px solid #f1f5f9', boxShadow:'0 2px 8px rgba(0,0,0,0.04)' }}>
         <h3 style={{ fontSize:'14px', fontWeight:'800', color:'#0f172a', marginBottom:'20px' }}>Your Stats</h3>
         {[
           { label:'Avg Rating',     value: parseFloat(profile.avg_rating || 0).toFixed(1) + ' ★', color:'#f59e0b' },

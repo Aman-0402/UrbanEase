@@ -42,7 +42,7 @@ export default function ProviderEarnings() {
       <Navbar/>
 
       {/* Header */}
-      <div style={{ background:'linear-gradient(135deg,#7c3aed 0%,#4338ca 100%)', padding:'40px 40px 36px' }}>
+      <div style={{ background:'linear-gradient(135deg,#7c3aed 0%,#4338ca 100%)', padding:'108px 40px 36px' }}>
         <div style={{ maxWidth:'1000px', margin:'0 auto' }}>
           <Link to="/provider" style={{ display:'inline-flex', alignItems:'center', gap:'8px', color:'rgba(255,255,255,0.7)', fontSize:'14px', fontWeight:'600', textDecoration:'none', marginBottom:'20px' }}
             onMouseOver={e=>e.currentTarget.style.color='white'}
