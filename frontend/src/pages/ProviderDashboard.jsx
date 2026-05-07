@@ -96,7 +96,10 @@ export default function ProviderDashboard() {
     setEarningsError('')
     getMyEarnings()
       .then(r => setEarningsData(r.data))
-      .catch(err => setEarningsError(err.response?.data?.detail || 'Failed to load earnings. Please try again.'))
+      .catch(err => {
+        const detail = err.response?.data?.detail || err.message || 'Failed to load earnings.'
+        setEarningsError(detail)
+      })
       .finally(() => setEarningsLoading(false))
   }
 

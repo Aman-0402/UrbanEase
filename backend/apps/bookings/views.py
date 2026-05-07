@@ -1,10 +1,12 @@
+import datetime
+from collections import defaultdict
+
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.decorators import api_view, permission_classes
 from django.utils import timezone
-from django.db.models import Sum, Count
-from django.db.models.functions import TruncMonth
+from django.db.models import Sum
 from django.shortcuts import get_object_or_404
 from .models import Booking, BookingStatusLog
 from .serializers import (
@@ -149,33 +151,47 @@ def provider_earnings(request):
     completed = Booking.objects.filter(
         provider__user=request.user, status=Booking.COMPLETED
     )
-    now = timezone.now()
-    this_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    last_month_start = (this_month_start - timezone.timedelta(days=1)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    total_earned   = completed.aggregate(t=Sum('total_price'))['t'] or 0
-    this_month     = completed.filter(completed_at__gte=this_month_start).aggregate(t=Sum('total_price'))['t'] or 0
-    last_month_amt = completed.filter(
-        completed_at__gte=last_month_start, completed_at__lt=this_month_start
+    # Aggregate totals directly — no timezone DB functions needed
+    total_earned = completed.aggregate(t=Sum('total_price'))['t'] or 0
+
+    # Compute month boundaries as plain dates to avoid DB timezone issues
+    today = timezone.localdate()
+    this_month_start = today.replace(day=1)
+    last_month_end   = this_month_start - datetime.timedelta(days=1)
+    last_month_start = last_month_end.replace(day=1)
+
+    this_month     = completed.filter(
+        completed_at__date__gte=this_month_start
     ).aggregate(t=Sum('total_price'))['t'] or 0
 
-    monthly = (
+    last_month_amt = completed.filter(
+        completed_at__date__gte=last_month_start,
+        completed_at__date__lte=last_month_end,
+    ).aggregate(t=Sum('total_price'))['t'] or 0
+
+    # Monthly breakdown — done in Python to avoid TruncMonth + tzdata issues
+    rows = (
         completed
         .exclude(completed_at__isnull=True)
-        .annotate(month=TruncMonth('completed_at'))
-        .values('month')
-        .annotate(amount=Sum('total_price'), jobs=Count('id'))
-        .order_by('-month')[:6]
+        .values_list('completed_at', 'total_price')
     )
+    month_acc = defaultdict(lambda: {'amount': 0.0, 'jobs': 0})
+    for dt, price in rows:
+        if timezone.is_aware(dt):
+            dt = timezone.localtime(dt)
+        key = dt.strftime('%b %Y')
+        month_acc[key]['amount'] += float(price or 0)
+        month_acc[key]['jobs']   += 1
+
+    # Sort descending by date, take last 6
+    def _month_key(k):
+        return datetime.datetime.strptime(k, '%b %Y')
+
     monthly_data = [
-        {
-            'month': m['month'].strftime('%b %Y'),
-            'amount': float(m['amount'] or 0),
-            'jobs':   m['jobs'],
-        }
-        for m in monthly
-        if m['month'] is not None
-    ]
+        {'month': k, 'amount': round(v['amount'], 2), 'jobs': v['jobs']}
+        for k, v in sorted(month_acc.items(), key=lambda x: _month_key(x[0]), reverse=True)
+    ][:6]
 
     recent_qs = (
         completed
