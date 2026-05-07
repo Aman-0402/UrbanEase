@@ -41,7 +41,7 @@ class ProviderReviewListView(generics.ListAPIView):
         provider = get_object_or_404(ProviderProfile, pk=self.kwargs['provider_pk'])
         return Review.objects.filter(provider=provider).select_related(
             'reviewer', 'booking__service'
-        )
+        ).prefetch_related('booking__items__service')
 
 
 class MyReviewsView(generics.ListAPIView):
@@ -52,4 +52,4 @@ class MyReviewsView(generics.ListAPIView):
     def get_queryset(self):
         return Review.objects.filter(reviewer=self.request.user).select_related(
             'booking__service', 'provider__user'
-        )
+        ).prefetch_related('booking__items__service')

@@ -38,7 +38,7 @@ class ReviewCreateSerializer(serializers.ModelSerializer):
 
 class ReviewSerializer(serializers.ModelSerializer):
     reviewer_name = serializers.CharField(source='reviewer.full_name', read_only=True)
-    service_name  = serializers.CharField(source='booking.service.name', read_only=True)
+    service_name  = serializers.SerializerMethodField()
 
     class Meta:
         model  = Review
@@ -47,3 +47,12 @@ class ReviewSerializer(serializers.ModelSerializer):
             'reviewer_name', 'service_name',
             'created_at',
         )
+
+    def get_service_name(self, obj):
+        if obj.booking.service_id:
+            return obj.booking.service.name
+        first = obj.booking.items.select_related('service').first()
+        if not first:
+            return '—'
+        rest = obj.booking.items.count() - 1
+        return first.service.name + (f' +{rest} more' if rest else '')

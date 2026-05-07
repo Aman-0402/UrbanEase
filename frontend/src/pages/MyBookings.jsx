@@ -115,8 +115,8 @@ export default function MyBookings() {
         items.filter(b => b.status === 'completed').forEach(b => {
           getBookingReview(b.id).then(() => setReviewed(prev => new Set([...prev, b.id]))).catch(()=>{})
         })
-        // pre-check payment status for pending/confirmed bookings
-        items.filter(b => ['pending','confirmed'].includes(b.status)).forEach(b => {
+        // pre-check payment status for all active bookings
+        items.filter(b => b.status !== 'cancelled').forEach(b => {
           getPaymentStatus(b.id).then(r => { if (r.data.paid) setPaid(prev => new Set([...prev, b.id])) }).catch(()=>{})
         })
       })
@@ -293,8 +293,8 @@ export default function MyBookings() {
                             bookingId={b.id}
                             amount={`₹${parseFloat(b.total_price || 0).toLocaleString('en-IN')}`}
                             onSuccess={() => {
-                              setPaid(prev => new Set([...prev, b.id]))
                               setPayingId(null)
+                              fetchBookings(activeTab)
                             }}
                           />
                         </div>

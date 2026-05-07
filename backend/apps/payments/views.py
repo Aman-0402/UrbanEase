@@ -35,12 +35,18 @@ def create_order(request):
         },
     )
 
+    if booking.service_id:
+        svc_name = booking.service.name
+    else:
+        first = booking.items.select_related('service').first()
+        svc_name = first.service.name if first else 'Service'
+
     return Response({
         'order_id':   payment.razorpay_order_id,
         'amount':     float(booking.total_price),
         'currency':   'INR',
         'booking_id': booking.id,
-        'service':    booking.service.name,
+        'service':    svc_name,
     })
 
 

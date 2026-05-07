@@ -75,7 +75,8 @@ class Booking(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f'#{self.pk} | {self.customer} → {self.service.name} | {self.status}'
+        svc = self.service.name if self.service_id else 'multi-service'
+        return f'#{self.pk} | {self.customer} → {svc} | {self.status}'
 
     def can_transition_to(self, new_status):
         return new_status in self.VALID_TRANSITIONS.get(self.status, [])

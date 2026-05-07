@@ -15,12 +15,22 @@ def _create(recipient, notif_type, title, body, booking=None):
     )
 
 
+def _service_name(booking):
+    if booking.service_id:
+        return booking.service.name
+    first = booking.items.select_related('service').first()
+    if not first:
+        return 'Service'
+    rest = booking.items.count() - 1
+    return first.service.name + (f' +{rest} more' if rest else '')
+
+
 @receiver(post_save, sender=Booking)
 def notify_booking_created(sender, instance, created, **kwargs):
     if not created:
         return
     provider_user = instance.provider.user
-    service_name  = instance.service.name
+    service_name  = _service_name(instance)
     customer_name = instance.customer.full_name or instance.customer.phone
 
     # Tell the provider they got a new booking
@@ -48,7 +58,7 @@ def notify_status_change(sender, instance, created, **kwargs):
 
     booking       = instance.booking
     new_status    = instance.to_status
-    service_name  = booking.service.name
+    service_name  = _service_name(booking)
     provider_name = booking.provider.user.full_name or booking.provider.user.phone
     customer      = booking.customer
     provider_user = booking.provider.user
@@ -91,7 +101,7 @@ def notify_review_received(sender, instance, created, **kwargs):
     if not created:
         return
     reviewer_name = instance.reviewer.full_name or instance.reviewer.phone
-    service_name  = instance.booking.service.name
+    service_name  = _service_name(instance.booking)
     _create(
         recipient=instance.provider.user,
         notif_type=Notification.REVIEW_RECEIVED,
