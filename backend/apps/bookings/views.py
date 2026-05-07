@@ -82,7 +82,7 @@ class BookingStatusUpdateView(APIView):
     permission_classes = (permissions.IsAuthenticated,)
 
     def get_booking(self, pk, user):
-        booking = get_object_or_404(Booking, pk=pk)
+        booking = get_object_or_404(_booking_detail_qs(), pk=pk)
         # Customer can only cancel; provider can do everything else
         if user.role == 'customer' and booking.customer != user:
             return None
@@ -136,7 +136,8 @@ class BookingStatusUpdateView(APIView):
             note=serializer.validated_data.get('note', ''),
         )
 
-        return Response(BookingDetailSerializer(booking).data)
+        # Refetch with fresh relations so the new log is included in the response
+        return Response(BookingDetailSerializer(_booking_detail_qs().get(pk=booking.pk)).data)
 
 
 @api_view(['GET'])
@@ -150,10 +151,10 @@ def provider_earnings(request):
     )
     now = timezone.now()
     this_month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    last_month_start = (this_month_start.replace(day=1) - timezone.timedelta(days=1)).replace(day=1)
+    last_month_start = (this_month_start - timezone.timedelta(days=1)).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    total_earned  = completed.aggregate(t=Sum('total_price'))['t'] or 0
-    this_month    = completed.filter(completed_at__gte=this_month_start).aggregate(t=Sum('total_price'))['t'] or 0
+    total_earned   = completed.aggregate(t=Sum('total_price'))['t'] or 0
+    this_month     = completed.filter(completed_at__gte=this_month_start).aggregate(t=Sum('total_price'))['t'] or 0
     last_month_amt = completed.filter(
         completed_at__gte=last_month_start, completed_at__lt=this_month_start
     ).aggregate(t=Sum('total_price'))['t'] or 0
@@ -176,13 +177,16 @@ def provider_earnings(request):
         if m['month'] is not None
     ]
 
-    recent = BookingListSerializer(
+    recent_qs = (
         completed
         .select_related('service__category', 'provider__user', 'customer')
         .prefetch_related('items__service__category')
-        .order_by('-completed_at')[:10],
-        many=True,
-    ).data
+        .order_by('-completed_at')[:10]
+    )
+    try:
+        recent = BookingListSerializer(recent_qs, many=True, context={'request': request}).data
+    except Exception:
+        recent = []
 
     return Response({
         'total_earned':  float(total_earned),
@@ -194,11 +198,21 @@ def provider_earnings(request):
     })
 
 
+def _booking_detail_qs():
+    return Booking.objects.select_related(
+        'provider__user', 'service__category', 'customer'
+    ).prefetch_related(
+        'items__service__category',
+        'logs__changed_by',
+        'provider__provider_services__service__category',
+    )
+
+
 @api_view(['PATCH'])
 @permission_classes([permissions.IsAuthenticated])
 def propose_negotiation(request, pk):
     """Customer proposes a custom price on a pending booking."""
-    booking = get_object_or_404(Booking, pk=pk, customer=request.user)
+    booking = get_object_or_404(_booking_detail_qs(), pk=pk, customer=request.user)
     if booking.status != Booking.PENDING:
         return Response({'detail': 'Can only negotiate pending bookings.'}, status=400)
 
@@ -210,14 +224,14 @@ def propose_negotiation(request, pk):
     booking.negotiation_note   = request.data.get('negotiation_note', '')
     booking.negotiation_status = Booking.NEG_PROPOSED
     booking.save(update_fields=['proposed_price', 'negotiation_note', 'negotiation_status'])
-    return Response(BookingDetailSerializer(booking).data)
+    return Response(BookingDetailSerializer(_booking_detail_qs().get(pk=booking.pk)).data)
 
 
 @api_view(['PATCH'])
 @permission_classes([permissions.IsAuthenticated])
 def respond_negotiation(request, pk):
     """Provider accepts or declines a customer's price proposal."""
-    booking = get_object_or_404(Booking, pk=pk, provider__user=request.user)
+    booking = get_object_or_404(_booking_detail_qs(), pk=pk, provider__user=request.user)
     if booking.negotiation_status != Booking.NEG_PROPOSED:
         return Response({'detail': 'No pending negotiation on this booking.'}, status=400)
 
@@ -240,7 +254,7 @@ def respond_negotiation(request, pk):
     else:
         return Response({'detail': 'action must be "accept" or "decline".'}, status=400)
 
-    return Response(BookingDetailSerializer(booking).data)
+    return Response(BookingDetailSerializer(_booking_detail_qs().get(pk=booking.pk)).data)
 
 
 class BookingCancelView(APIView):

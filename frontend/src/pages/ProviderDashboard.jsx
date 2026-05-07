@@ -73,8 +73,9 @@ export default function ProviderDashboard() {
   const [negotiatingId,    setNegotiatingId]    = useState(null)
   const [togglingAvail,    setTogglingAvail]    = useState(false)
   const [activeSection, setActiveSection] = useState('bookings')
-  const [earningsData,  setEarningsData]  = useState(null)
+  const [earningsData,    setEarningsData]    = useState(null)
   const [earningsLoading, setEarningsLoading] = useState(false)
+  const [earningsError,   setEarningsError]   = useState('')
 
   const fetchAll = useCallback(() => {
     setLoading(true)
@@ -90,10 +91,18 @@ export default function ProviderDashboard() {
 
   useEffect(() => { fetchAll() }, [fetchAll])
 
+  function fetchEarnings() {
+    setEarningsLoading(true)
+    setEarningsError('')
+    getMyEarnings()
+      .then(r => setEarningsData(r.data))
+      .catch(err => setEarningsError(err.response?.data?.detail || 'Failed to load earnings. Please try again.'))
+      .finally(() => setEarningsLoading(false))
+  }
+
   useEffect(() => {
     if (activeSection !== 'earnings') return
-    setEarningsLoading(true)
-    getMyEarnings().then(r => setEarningsData(r.data)).finally(() => setEarningsLoading(false))
+    fetchEarnings()
   }, [activeSection])
 
   async function handleStatusUpdate(bookingId, newStatus) {
@@ -142,6 +151,7 @@ export default function ProviderDashboard() {
 
   return (
     <div style={{ minHeight:'100vh', background:'#f8fafc', fontFamily:'system-ui,-apple-system,sans-serif' }}>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
 
       {/* Sidebar + main layout */}
       <div style={{ display:'flex', minHeight:'100vh' }}>
@@ -229,12 +239,21 @@ export default function ProviderDashboard() {
                   : activeSection === 'earnings' ? 'Earnings'
                   : 'My Profile'}
               </h1>
-              <p style={{ color:'#64748b', fontSize:'14px' }}>
-                {activeSection === 'bookings' ? 'Review and update your assigned jobs'
-                  : activeSection === 'kyc' ? 'Submit your identity documents to get verified on the platform'
-                  : activeSection === 'earnings' ? 'Your completed-job revenue summary'
-                  : 'Manage your provider profile and settings'}
-              </p>
+              <div style={{ display:'flex', alignItems:'center', gap:'12px', flexWrap:'wrap' }}>
+                <p style={{ color:'#64748b', fontSize:'14px', margin:0 }}>
+                  {activeSection === 'bookings' ? 'Review and update your assigned jobs'
+                    : activeSection === 'kyc' ? 'Submit your identity documents to get verified on the platform'
+                    : activeSection === 'earnings' ? 'Your completed-job revenue summary'
+                    : 'Manage your provider profile and settings'}
+                </p>
+                {activeSection === 'earnings' && (
+                  <button onClick={fetchEarnings} disabled={earningsLoading}
+                    style={{ display:'flex', alignItems:'center', gap:'5px', padding:'6px 14px', background:'#f5f3ff', border:'1.5px solid #ddd6fe', borderRadius:'10px', color:'#7c3aed', fontWeight:'700', fontSize:'12px', cursor: earningsLoading ? 'wait' : 'pointer', flexShrink:0 }}>
+                    <TrendingUp size={12} style={{ animation: earningsLoading ? 'spin 0.8s linear infinite' : 'none' }}/>
+                    Refresh
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* ── BOOKINGS SECTION ── */}
@@ -412,7 +431,7 @@ export default function ProviderDashboard() {
 
             {/* ── EARNINGS SECTION ── */}
             {activeSection === 'earnings' && (
-              <EarningsSection data={earningsData} loading={earningsLoading}/>
+              <EarningsSection data={earningsData} loading={earningsLoading} error={earningsError} onRetry={fetchEarnings}/>
             )}
           </div>
         </div>
@@ -708,11 +727,22 @@ function KYCSection() {
 }
 
 /* ── Earnings section ── */
-function EarningsSection({ data, loading }) {
+function EarningsSection({ data, loading, error, onRetry }) {
   if (loading) return (
     <div style={{ display:'flex', justifyContent:'center', padding:'60px 0' }}>
       <div style={{ width:'32px', height:'32px', border:'3px solid #e5e7eb', borderTopColor:'#7c3aed', borderRadius:'50%', animation:'spin 0.8s linear infinite' }}/>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  )
+
+  if (error) return (
+    <div style={{ textAlign:'center', padding:'60px 0' }}>
+      <div style={{ fontSize:'40px', marginBottom:'16px' }}>⚠️</div>
+      <p style={{ color:'#dc2626', fontWeight:'700', marginBottom:'12px' }}>{error}</p>
+      <button onClick={onRetry}
+        style={{ padding:'10px 24px', background:'linear-gradient(135deg,#7c3aed,#4338ca)', color:'white', border:'none', borderRadius:'12px', fontWeight:'700', fontSize:'13px', cursor:'pointer' }}>
+        Try Again
+      </button>
     </div>
   )
 
