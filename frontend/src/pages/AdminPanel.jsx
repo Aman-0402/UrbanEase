@@ -4,11 +4,16 @@ import { motion } from 'framer-motion'
 import {
   Users, Calendar, BarChart2, ShieldCheck, LogOut,
   Search, CheckCircle, XCircle, TrendingUp, IndianRupee,
-  RefreshCw, UserCheck, AlertCircle,
+  RefreshCw, UserCheck, AlertCircle, Wrench, Plus, Pencil, Trash2, Lightbulb,
 } from 'lucide-react'
 import Logo from '../components/layout/Logo'
 import useAuthStore from '../store/authStore'
-import { getStats, getAdminUsers, toggleUserActive, getAdminBookings, getAdminProviders, toggleVerified, getAdminKYCList, reviewKYC } from '../api/admin'
+import {
+  getStats, getAdminUsers, toggleUserActive, getAdminBookings, getAdminProviders, toggleVerified, getAdminKYCList, reviewKYC,
+  getAdminCategories, createCategory, updateCategory, deleteCategory,
+  getAdminServices, createService, updateService, deleteService,
+  getAdminSuggestions, reviewSuggestion,
+} from '../api/admin'
 
 const SECTIONS = [
   { key: 'overview',  icon: BarChart2,   label: 'Overview' },
@@ -16,6 +21,7 @@ const SECTIONS = [
   { key: 'bookings',  icon: Calendar,    label: 'Bookings' },
   { key: 'providers', icon: ShieldCheck, label: 'Providers' },
   { key: 'kyc',       icon: UserCheck,   label: 'KYC Review' },
+  { key: 'services',  icon: Wrench,      label: 'Services' },
 ]
 
 const STATUS_COLOR = {
@@ -79,6 +85,22 @@ export default function AdminPanel() {
   const [rejectModal,  setRejectModal]  = useState(null)  // kyc id being rejected
   const [rejectReason, setRejectReason] = useState('')
 
+  // Services section state
+  const [svcSubTab,       setSvcSubTab]       = useState('categories')
+  const [categories,      setCategories]      = useState([])
+  const [svcs,            setSvcs]            = useState([])
+  const [suggestions,     setSuggestions]     = useState([])
+  const [suggFilter,      setSuggFilter]      = useState('pending')
+  const [catModal,        setCatModal]        = useState(null)   // {mode:'add'|'edit', data:{}}
+  const [svcModal,        setSvcModal]        = useState(null)   // {mode:'add'|'edit', data:{}}
+  const [deleteConfirm,   setDeleteConfirm]   = useState(null)   // {type:'category'|'service', id, name}
+  const [approveModal,    setApproveModal]    = useState(null)   // suggestion object
+  const [approveForm,     setApproveForm]     = useState({ base_price: '', duration_minutes: 60 })
+  const [rejectSuggModal, setRejectSuggModal] = useState(null)
+  const [rejectSuggReason,setRejectSuggReason]= useState('')
+  const [svcFormData,     setSvcFormData]     = useState({ name:'', category:'', description:'', base_price:'', duration_minutes:60, is_active:true })
+  const [catFormData,     setCatFormData]     = useState({ name:'', icon:'wrench', description:'', is_active:true, order:0 })
+
   // Load stats once
   useEffect(() => {
     getStats().then(r => setStats(r.data)).catch(() => {})
@@ -104,12 +126,30 @@ export default function AdminPanel() {
       const params = {}
       if (kycFilter) params.kyc_status = kycFilter
       getAdminKYCList(params).then(r => setKycList(r.data.results ?? r.data)).finally(() => setLoading(false))
+    } else if (section === 'services') {
+      if (svcSubTab === 'categories') {
+        getAdminCategories().then(r => setCategories(r.data.results ?? r.data)).finally(() => setLoading(false))
+      } else if (svcSubTab === 'services') {
+        getAdminServices().then(r => setSvcs(r.data.results ?? r.data)).finally(() => setLoading(false))
+      } else if (svcSubTab === 'suggestions') {
+        const params = suggFilter ? { status: suggFilter } : {}
+        getAdminSuggestions(params).then(r => setSuggestions(r.data.results ?? r.data)).finally(() => setLoading(false))
+      } else {
+        setLoading(false)
+      }
     } else {
       setLoading(false)
     }
-  }, [section, search, roleFilter, statusFilter, kycFilter])
+  }, [section, search, roleFilter, statusFilter, kycFilter, svcSubTab, suggFilter])
 
   useEffect(() => { loadSection() }, [loadSection])
+
+  // Pre-load categories when entering services section (needed for service form dropdown)
+  useEffect(() => {
+    if (section === 'services' && categories.length === 0) {
+      getAdminCategories().then(r => setCategories(r.data.results ?? r.data)).catch(() => {})
+    }
+  }, [section]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleToggleUser(id) {
     setToggling(id)
@@ -143,6 +183,89 @@ export default function AdminPanel() {
       setKycList(prev => prev.map(k => k.id === rejectModal ? res.data : k))
       setRejectModal(null)
       setRejectReason('')
+    } finally { setToggling(null) }
+  }
+
+  // ── Service section handlers ──────────────────────────────────────────────
+  async function handleSaveCat(e) {
+    e.preventDefault()
+    setToggling('cat-save')
+    try {
+      if (catModal.mode === 'add') {
+        const res = await createCategory(catFormData)
+        setCategories(prev => [...prev, res.data])
+      } else {
+        const res = await updateCategory(catModal.data.id, catFormData)
+        setCategories(prev => prev.map(c => c.id === catModal.data.id ? res.data : c))
+      }
+      setCatModal(null)
+    } catch (err) {
+      alert(err.response?.data?.name?.[0] || err.response?.data?.detail || 'Failed to save category.')
+    } finally { setToggling(null) }
+  }
+
+  async function handleSaveSvc(e) {
+    e.preventDefault()
+    setToggling('svc-save')
+    try {
+      if (svcModal.mode === 'add') {
+        const res = await createService(svcFormData)
+        setSvcs(prev => [...prev, res.data])
+      } else {
+        const res = await updateService(svcModal.data.id, svcFormData)
+        setSvcs(prev => prev.map(s => s.id === svcModal.data.id ? res.data : s))
+      }
+      setSvcModal(null)
+    } catch (err) {
+      alert(err.response?.data?.name?.[0] || err.response?.data?.detail || 'Failed to save service.')
+    } finally { setToggling(null) }
+  }
+
+  async function handleDelete() {
+    if (!deleteConfirm) return
+    setToggling('delete')
+    try {
+      if (deleteConfirm.type === 'category') {
+        await deleteCategory(deleteConfirm.id)
+        setCategories(prev => prev.filter(c => c.id !== deleteConfirm.id))
+      } else {
+        await deleteService(deleteConfirm.id)
+        setSvcs(prev => prev.filter(s => s.id !== deleteConfirm.id))
+      }
+      setDeleteConfirm(null)
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Cannot delete — it may be in use.')
+    } finally { setToggling(null) }
+  }
+
+  async function handleApproveSuggestion(e) {
+    e.preventDefault()
+    setToggling('sugg-approve')
+    try {
+      const res = await reviewSuggestion(approveModal.id, {
+        action: 'approve',
+        base_price: approveForm.base_price,
+        duration_minutes: approveForm.duration_minutes,
+      })
+      setSuggestions(prev => prev.map(s => s.id === approveModal.id ? res.data : s))
+      setApproveModal(null)
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to approve suggestion.')
+    } finally { setToggling(null) }
+  }
+
+  async function handleRejectSuggestion() {
+    setToggling('sugg-reject')
+    try {
+      const res = await reviewSuggestion(rejectSuggModal.id, {
+        action: 'reject',
+        rejection_reason: rejectSuggReason,
+      })
+      setSuggestions(prev => prev.map(s => s.id === rejectSuggModal.id ? res.data : s))
+      setRejectSuggModal(null)
+      setRejectSuggReason('')
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to reject suggestion.')
     } finally { setToggling(null) }
   }
 
@@ -550,6 +673,373 @@ export default function AdminPanel() {
                   </tbody>
                 </table>
               </div>
+            </>
+          )}
+
+          {/* ── SERVICES ── */}
+          {section === 'services' && (
+            <>
+              {/* Category modal */}
+              {catModal && (
+                <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:100, display:'flex', alignItems:'center', justifyContent:'center' }}
+                  onClick={e => { if (e.target === e.currentTarget) setCatModal(null) }}>
+                  <div style={{ background:'white', borderRadius:'20px', padding:'32px', width:'440px', maxWidth:'90vw' }}>
+                    <h3 style={{ fontSize:'16px', fontWeight:'800', color:'#0f172a', marginBottom:'20px' }}>
+                      {catModal.mode === 'add' ? 'New Category' : 'Edit Category'}
+                    </h3>
+                    <form onSubmit={handleSaveCat} style={{ display:'flex', flexDirection:'column', gap:'14px' }}>
+                      {[
+                        { label:'Name', key:'name', type:'text', required:true },
+                        { label:'Icon slug', key:'icon', type:'text' },
+                        { label:'Description', key:'description', type:'text' },
+                        { label:'Order', key:'order', type:'number' },
+                      ].map(({ label, key, type, required }) => (
+                        <div key={key}>
+                          <label style={{ fontSize:'12px', fontWeight:'700', color:'#64748b', display:'block', marginBottom:'5px', textTransform:'uppercase' }}>{label}</label>
+                          <input type={type} required={required} value={catFormData[key]}
+                            onChange={e => setCatFormData(p => ({ ...p, [key]: type === 'number' ? +e.target.value : e.target.value }))}
+                            style={{ width:'100%', padding:'10px 12px', border:'2px solid #e5e7eb', borderRadius:'10px', fontSize:'13px', outline:'none', boxSizing:'border-box' }}
+                            onFocus={e => e.target.style.borderColor='#7c3aed'}
+                            onBlur={e => e.target.style.borderColor='#e5e7eb'}/>
+                        </div>
+                      ))}
+                      <label style={{ display:'flex', alignItems:'center', gap:'8px', fontSize:'13px', fontWeight:'600', color:'#374151', cursor:'pointer' }}>
+                        <input type="checkbox" checked={catFormData.is_active} onChange={e => setCatFormData(p => ({ ...p, is_active: e.target.checked }))}/>
+                        Active
+                      </label>
+                      <div style={{ display:'flex', gap:'10px', justifyContent:'flex-end', marginTop:'4px' }}>
+                        <button type="button" onClick={() => setCatModal(null)} style={{ padding:'10px 20px', borderRadius:'10px', border:'2px solid #e5e7eb', background:'white', color:'#64748b', fontWeight:'700', fontSize:'13px', cursor:'pointer' }}>Cancel</button>
+                        <button type="submit" disabled={toggling === 'cat-save'} style={{ padding:'10px 20px', borderRadius:'10px', border:'none', background:'#7c3aed', color:'white', fontWeight:'700', fontSize:'13px', cursor:'pointer' }}>
+                          {toggling === 'cat-save' ? 'Saving…' : 'Save'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {/* Service modal */}
+              {svcModal && (
+                <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:100, display:'flex', alignItems:'center', justifyContent:'center' }}
+                  onClick={e => { if (e.target === e.currentTarget) setSvcModal(null) }}>
+                  <div style={{ background:'white', borderRadius:'20px', padding:'32px', width:'480px', maxWidth:'90vw', maxHeight:'90vh', overflowY:'auto' }}>
+                    <h3 style={{ fontSize:'16px', fontWeight:'800', color:'#0f172a', marginBottom:'20px' }}>
+                      {svcModal.mode === 'add' ? 'New Service' : 'Edit Service'}
+                    </h3>
+                    <form onSubmit={handleSaveSvc} style={{ display:'flex', flexDirection:'column', gap:'14px' }}>
+                      <div>
+                        <label style={{ fontSize:'12px', fontWeight:'700', color:'#64748b', display:'block', marginBottom:'5px', textTransform:'uppercase' }}>Name *</label>
+                        <input required value={svcFormData.name} onChange={e => setSvcFormData(p => ({ ...p, name: e.target.value }))}
+                          style={{ width:'100%', padding:'10px 12px', border:'2px solid #e5e7eb', borderRadius:'10px', fontSize:'13px', outline:'none', boxSizing:'border-box' }}
+                          onFocus={e => e.target.style.borderColor='#7c3aed'} onBlur={e => e.target.style.borderColor='#e5e7eb'}/>
+                      </div>
+                      <div>
+                        <label style={{ fontSize:'12px', fontWeight:'700', color:'#64748b', display:'block', marginBottom:'5px', textTransform:'uppercase' }}>Category *</label>
+                        <select required value={svcFormData.category} onChange={e => setSvcFormData(p => ({ ...p, category: e.target.value }))}
+                          style={{ width:'100%', padding:'10px 12px', border:'2px solid #e5e7eb', borderRadius:'10px', fontSize:'13px', outline:'none', boxSizing:'border-box', background:'white' }}>
+                          <option value="">Select category…</option>
+                          {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ fontSize:'12px', fontWeight:'700', color:'#64748b', display:'block', marginBottom:'5px', textTransform:'uppercase' }}>Description *</label>
+                        <textarea required rows={3} value={svcFormData.description} onChange={e => setSvcFormData(p => ({ ...p, description: e.target.value }))}
+                          style={{ width:'100%', padding:'10px 12px', border:'2px solid #e5e7eb', borderRadius:'10px', fontSize:'13px', outline:'none', boxSizing:'border-box', resize:'vertical', fontFamily:'inherit' }}
+                          onFocus={e => e.target.style.borderColor='#7c3aed'} onBlur={e => e.target.style.borderColor='#e5e7eb'}/>
+                      </div>
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px' }}>
+                        <div>
+                          <label style={{ fontSize:'12px', fontWeight:'700', color:'#64748b', display:'block', marginBottom:'5px', textTransform:'uppercase' }}>Base Price (₹) *</label>
+                          <input type="number" min="0" step="0.01" required value={svcFormData.base_price} onChange={e => setSvcFormData(p => ({ ...p, base_price: e.target.value }))}
+                            style={{ width:'100%', padding:'10px 12px', border:'2px solid #e5e7eb', borderRadius:'10px', fontSize:'13px', outline:'none', boxSizing:'border-box' }}
+                            onFocus={e => e.target.style.borderColor='#7c3aed'} onBlur={e => e.target.style.borderColor='#e5e7eb'}/>
+                        </div>
+                        <div>
+                          <label style={{ fontSize:'12px', fontWeight:'700', color:'#64748b', display:'block', marginBottom:'5px', textTransform:'uppercase' }}>Duration (min)</label>
+                          <input type="number" min="1" value={svcFormData.duration_minutes} onChange={e => setSvcFormData(p => ({ ...p, duration_minutes: +e.target.value }))}
+                            style={{ width:'100%', padding:'10px 12px', border:'2px solid #e5e7eb', borderRadius:'10px', fontSize:'13px', outline:'none', boxSizing:'border-box' }}
+                            onFocus={e => e.target.style.borderColor='#7c3aed'} onBlur={e => e.target.style.borderColor='#e5e7eb'}/>
+                        </div>
+                      </div>
+                      <label style={{ display:'flex', alignItems:'center', gap:'8px', fontSize:'13px', fontWeight:'600', color:'#374151', cursor:'pointer' }}>
+                        <input type="checkbox" checked={svcFormData.is_active} onChange={e => setSvcFormData(p => ({ ...p, is_active: e.target.checked }))}/>
+                        Active
+                      </label>
+                      <div style={{ display:'flex', gap:'10px', justifyContent:'flex-end', marginTop:'4px' }}>
+                        <button type="button" onClick={() => setSvcModal(null)} style={{ padding:'10px 20px', borderRadius:'10px', border:'2px solid #e5e7eb', background:'white', color:'#64748b', fontWeight:'700', fontSize:'13px', cursor:'pointer' }}>Cancel</button>
+                        <button type="submit" disabled={toggling === 'svc-save'} style={{ padding:'10px 20px', borderRadius:'10px', border:'none', background:'#7c3aed', color:'white', fontWeight:'700', fontSize:'13px', cursor:'pointer' }}>
+                          {toggling === 'svc-save' ? 'Saving…' : 'Save'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {/* Delete confirm modal */}
+              {deleteConfirm && (
+                <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:100, display:'flex', alignItems:'center', justifyContent:'center' }}
+                  onClick={e => { if (e.target === e.currentTarget) setDeleteConfirm(null) }}>
+                  <div style={{ background:'white', borderRadius:'20px', padding:'32px', width:'400px', maxWidth:'90vw' }}>
+                    <h3 style={{ fontSize:'16px', fontWeight:'800', color:'#0f172a', marginBottom:'8px' }}>Confirm Delete</h3>
+                    <p style={{ fontSize:'13px', color:'#64748b', marginBottom:'20px' }}>
+                      Delete <strong>{deleteConfirm.name}</strong>? This cannot be undone.
+                    </p>
+                    <div style={{ display:'flex', gap:'10px', justifyContent:'flex-end' }}>
+                      <button onClick={() => setDeleteConfirm(null)} style={{ padding:'10px 20px', borderRadius:'10px', border:'2px solid #e5e7eb', background:'white', color:'#64748b', fontWeight:'700', fontSize:'13px', cursor:'pointer' }}>Cancel</button>
+                      <button onClick={handleDelete} disabled={toggling === 'delete'} style={{ padding:'10px 20px', borderRadius:'10px', border:'none', background:'#dc2626', color:'white', fontWeight:'700', fontSize:'13px', cursor:'pointer' }}>
+                        {toggling === 'delete' ? 'Deleting…' : 'Delete'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Approve suggestion modal */}
+              {approveModal && (
+                <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:100, display:'flex', alignItems:'center', justifyContent:'center' }}
+                  onClick={e => { if (e.target === e.currentTarget) setApproveModal(null) }}>
+                  <div style={{ background:'white', borderRadius:'20px', padding:'32px', width:'440px', maxWidth:'90vw' }}>
+                    <h3 style={{ fontSize:'16px', fontWeight:'800', color:'#0f172a', marginBottom:'6px' }}>Approve Suggestion</h3>
+                    <p style={{ fontSize:'13px', color:'#64748b', marginBottom:'16px' }}>
+                      Adding <strong>{approveModal.service_name}</strong> under <strong>{approveModal.category_name}</strong>. Set pricing:
+                    </p>
+                    <form onSubmit={handleApproveSuggestion} style={{ display:'flex', flexDirection:'column', gap:'14px' }}>
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px' }}>
+                        <div>
+                          <label style={{ fontSize:'12px', fontWeight:'700', color:'#64748b', display:'block', marginBottom:'5px', textTransform:'uppercase' }}>Base Price (₹) *</label>
+                          <input type="number" min="0" step="0.01" required value={approveForm.base_price}
+                            onChange={e => setApproveForm(p => ({ ...p, base_price: e.target.value }))}
+                            style={{ width:'100%', padding:'10px 12px', border:'2px solid #e5e7eb', borderRadius:'10px', fontSize:'13px', outline:'none', boxSizing:'border-box' }}
+                            onFocus={e => e.target.style.borderColor='#059669'} onBlur={e => e.target.style.borderColor='#e5e7eb'}/>
+                        </div>
+                        <div>
+                          <label style={{ fontSize:'12px', fontWeight:'700', color:'#64748b', display:'block', marginBottom:'5px', textTransform:'uppercase' }}>Duration (min)</label>
+                          <input type="number" min="1" value={approveForm.duration_minutes}
+                            onChange={e => setApproveForm(p => ({ ...p, duration_minutes: +e.target.value }))}
+                            style={{ width:'100%', padding:'10px 12px', border:'2px solid #e5e7eb', borderRadius:'10px', fontSize:'13px', outline:'none', boxSizing:'border-box' }}
+                            onFocus={e => e.target.style.borderColor='#059669'} onBlur={e => e.target.style.borderColor='#e5e7eb'}/>
+                        </div>
+                      </div>
+                      <div style={{ display:'flex', gap:'10px', justifyContent:'flex-end' }}>
+                        <button type="button" onClick={() => setApproveModal(null)} style={{ padding:'10px 20px', borderRadius:'10px', border:'2px solid #e5e7eb', background:'white', color:'#64748b', fontWeight:'700', fontSize:'13px', cursor:'pointer' }}>Cancel</button>
+                        <button type="submit" disabled={toggling === 'sugg-approve'} style={{ padding:'10px 20px', borderRadius:'10px', border:'none', background:'#059669', color:'white', fontWeight:'700', fontSize:'13px', cursor:'pointer' }}>
+                          {toggling === 'sugg-approve' ? 'Approving…' : 'Approve & Add'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {/* Reject suggestion modal */}
+              {rejectSuggModal && (
+                <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:100, display:'flex', alignItems:'center', justifyContent:'center' }}
+                  onClick={e => { if (e.target === e.currentTarget) { setRejectSuggModal(null); setRejectSuggReason('') } }}>
+                  <div style={{ background:'white', borderRadius:'20px', padding:'32px', width:'440px', maxWidth:'90vw' }}>
+                    <h3 style={{ fontSize:'16px', fontWeight:'800', color:'#0f172a', marginBottom:'8px' }}>Reject Suggestion</h3>
+                    <p style={{ fontSize:'13px', color:'#64748b', marginBottom:'16px' }}>Optionally explain why this suggestion was declined.</p>
+                    <textarea rows={3} value={rejectSuggReason} onChange={e => setRejectSuggReason(e.target.value)}
+                      placeholder="Not suitable at this time…"
+                      style={{ width:'100%', padding:'12px', border:'2px solid #e5e7eb', borderRadius:'12px', fontSize:'13px', resize:'vertical', outline:'none', boxSizing:'border-box', fontFamily:'inherit' }}
+                      onFocus={e => e.target.style.borderColor='#dc2626'} onBlur={e => e.target.style.borderColor='#e5e7eb'}/>
+                    <div style={{ display:'flex', gap:'10px', justifyContent:'flex-end', marginTop:'14px' }}>
+                      <button onClick={() => { setRejectSuggModal(null); setRejectSuggReason('') }} style={{ padding:'10px 20px', borderRadius:'10px', border:'2px solid #e5e7eb', background:'white', color:'#64748b', fontWeight:'700', fontSize:'13px', cursor:'pointer' }}>Cancel</button>
+                      <button onClick={handleRejectSuggestion} disabled={toggling === 'sugg-reject'} style={{ padding:'10px 20px', borderRadius:'10px', border:'none', background:'#dc2626', color:'white', fontWeight:'700', fontSize:'13px', cursor:'pointer' }}>
+                        {toggling === 'sugg-reject' ? 'Rejecting…' : 'Reject'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Sub-tab nav */}
+              <div style={{ marginBottom:'24px' }}>
+                <h1 style={{ fontSize:'22px', fontWeight:'900', color:'#0f172a', marginBottom:'16px' }}>Services</h1>
+                <div style={{ display:'flex', gap:'8px' }}>
+                  {[
+                    { key:'categories',  label:'Categories' },
+                    { key:'services',    label:'Services' },
+                    { key:'suggestions', label:'Suggestions' },
+                  ].map(t => (
+                    <button key={t.key} onClick={() => setSvcSubTab(t.key)}
+                      style={{ padding:'9px 20px', borderRadius:'10px', border:'none', fontSize:'13px', fontWeight:'700', cursor:'pointer', transition:'all 0.2s',
+                        background: svcSubTab === t.key ? '#7c3aed' : '#f1f5f9',
+                        color:      svcSubTab === t.key ? 'white'   : '#64748b' }}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── CATEGORIES sub-tab ── */}
+              {svcSubTab === 'categories' && (
+                <>
+                  <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:'16px' }}>
+                    <button onClick={() => { setCatFormData({ name:'', icon:'wrench', description:'', is_active:true, order:0 }); setCatModal({ mode:'add', data:{} }) }}
+                      style={{ display:'flex', alignItems:'center', gap:'7px', padding:'10px 18px', background:'#7c3aed', color:'white', border:'none', borderRadius:'11px', fontSize:'13px', fontWeight:'700', cursor:'pointer' }}>
+                      <Plus size={14}/> Add Category
+                    </button>
+                  </div>
+                  <div style={{ background:'white', borderRadius:'20px', border:'1px solid #f1f5f9', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', overflow:'hidden' }}>
+                    <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                      <thead style={{ background:'#f8fafc' }}>
+                        <tr>{['Name', 'Icon', 'Services', 'Order', 'Active', 'Actions'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
+                      </thead>
+                      <tbody>
+                        {loading ? (
+                          <tr><td colSpan={6} style={{ ...tdStyle, textAlign:'center', color:'#94a3b8' }}>Loading…</td></tr>
+                        ) : categories.length === 0 ? (
+                          <tr><td colSpan={6} style={{ ...tdStyle, textAlign:'center', color:'#94a3b8' }}>No categories yet</td></tr>
+                        ) : categories.map(c => (
+                          <tr key={c.id}>
+                            <td style={tdStyle}><span style={{ fontWeight:'700', color:'#0f172a' }}>{c.name}</span></td>
+                            <td style={tdStyle}><span style={{ fontFamily:'monospace', fontSize:'12px', color:'#7c3aed' }}>{c.icon}</span></td>
+                            <td style={tdStyle}>{c.service_count}</td>
+                            <td style={tdStyle}>{c.order}</td>
+                            <td style={tdStyle}><Badge label={c.is_active ? 'Yes' : 'No'} color={c.is_active ? '#059669' : '#94a3b8'}/></td>
+                            <td style={tdStyle}>
+                              <div style={{ display:'flex', gap:'6px' }}>
+                                <button onClick={() => { setCatFormData({ name:c.name, icon:c.icon, description:c.description, is_active:c.is_active, order:c.order }); setCatModal({ mode:'edit', data:c }) }}
+                                  style={{ padding:'6px 12px', borderRadius:'8px', border:'none', background:'#f5f3ff', color:'#7c3aed', fontSize:'12px', fontWeight:'700', cursor:'pointer', display:'flex', alignItems:'center', gap:'4px' }}>
+                                  <Pencil size={11}/> Edit
+                                </button>
+                                <button onClick={() => setDeleteConfirm({ type:'category', id:c.id, name:c.name })}
+                                  style={{ padding:'6px 12px', borderRadius:'8px', border:'none', background:'#fef2f2', color:'#dc2626', fontSize:'12px', fontWeight:'700', cursor:'pointer', display:'flex', alignItems:'center', gap:'4px' }}>
+                                  <Trash2 size={11}/> Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+
+              {/* ── SERVICES sub-tab ── */}
+              {svcSubTab === 'services' && (
+                <>
+                  <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:'16px' }}>
+                    <button onClick={() => {
+                      setSvcFormData({ name:'', category: categories[0]?.id || '', description:'', base_price:'', duration_minutes:60, is_active:true })
+                      setSvcModal({ mode:'add', data:{} })
+                    }}
+                      style={{ display:'flex', alignItems:'center', gap:'7px', padding:'10px 18px', background:'#7c3aed', color:'white', border:'none', borderRadius:'11px', fontSize:'13px', fontWeight:'700', cursor:'pointer' }}>
+                      <Plus size={14}/> Add Service
+                    </button>
+                  </div>
+                  <div style={{ background:'white', borderRadius:'20px', border:'1px solid #f1f5f9', boxShadow:'0 2px 8px rgba(0,0,0,0.04)', overflow:'hidden' }}>
+                    <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                      <thead style={{ background:'#f8fafc' }}>
+                        <tr>{['Service', 'Category', 'Price', 'Duration', 'Active', 'Actions'].map(h => <th key={h} style={thStyle}>{h}</th>)}</tr>
+                      </thead>
+                      <tbody>
+                        {loading ? (
+                          <tr><td colSpan={6} style={{ ...tdStyle, textAlign:'center', color:'#94a3b8' }}>Loading…</td></tr>
+                        ) : svcs.length === 0 ? (
+                          <tr><td colSpan={6} style={{ ...tdStyle, textAlign:'center', color:'#94a3b8' }}>No services yet</td></tr>
+                        ) : svcs.map(s => (
+                          <tr key={s.id}>
+                            <td style={tdStyle}><span style={{ fontWeight:'700', color:'#0f172a' }}>{s.name}</span></td>
+                            <td style={tdStyle}>{s.category_name}</td>
+                            <td style={tdStyle}>₹{parseFloat(s.base_price).toLocaleString('en-IN')}</td>
+                            <td style={tdStyle}>{s.duration_display}</td>
+                            <td style={tdStyle}><Badge label={s.is_active ? 'Yes' : 'No'} color={s.is_active ? '#059669' : '#94a3b8'}/></td>
+                            <td style={tdStyle}>
+                              <div style={{ display:'flex', gap:'6px' }}>
+                                <button onClick={() => { setSvcFormData({ name:s.name, category:s.category, description:s.description, base_price:s.base_price, duration_minutes:s.duration_minutes, is_active:s.is_active }); setSvcModal({ mode:'edit', data:s }) }}
+                                  style={{ padding:'6px 12px', borderRadius:'8px', border:'none', background:'#f5f3ff', color:'#7c3aed', fontSize:'12px', fontWeight:'700', cursor:'pointer', display:'flex', alignItems:'center', gap:'4px' }}>
+                                  <Pencil size={11}/> Edit
+                                </button>
+                                <button onClick={() => setDeleteConfirm({ type:'service', id:s.id, name:s.name })}
+                                  style={{ padding:'6px 12px', borderRadius:'8px', border:'none', background:'#fef2f2', color:'#dc2626', fontSize:'12px', fontWeight:'700', cursor:'pointer', display:'flex', alignItems:'center', gap:'4px' }}>
+                                  <Trash2 size={11}/> Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+
+              {/* ── SUGGESTIONS sub-tab ── */}
+              {svcSubTab === 'suggestions' && (
+                <>
+                  <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:'16px', gap:'10px' }}>
+                    <select value={suggFilter} onChange={e => setSuggFilter(e.target.value)}
+                      style={{ padding:'10px 14px', border:'2px solid #e5e7eb', borderRadius:'11px', fontSize:'13px', color:'#374151', background:'white', cursor:'pointer', outline:'none' }}>
+                      <option value="pending">Pending</option>
+                      <option value="approved">Approved</option>
+                      <option value="rejected">Rejected</option>
+                      <option value="">All</option>
+                    </select>
+                  </div>
+
+                  {loading ? (
+                    <div style={{ color:'#94a3b8', textAlign:'center', padding:'40px 0' }}>Loading…</div>
+                  ) : suggestions.length === 0 ? (
+                    <div style={{ textAlign:'center', padding:'60px 0', color:'#94a3b8' }}>
+                      <Lightbulb size={40} style={{ marginBottom:'12px', opacity:0.3 }}/>
+                      <p style={{ margin:0 }}>No suggestions in this category</p>
+                    </div>
+                  ) : (
+                    <div style={{ display:'flex', flexDirection:'column', gap:'14px' }}>
+                      {suggestions.map(s => {
+                        const isPending  = s.status === 'pending'
+                        const isApproved = s.status === 'approved'
+                        return (
+                          <div key={s.id} style={{ background:'white', borderRadius:'16px', border:`1px solid ${isPending ? '#fde68a' : isApproved ? '#a7f3d0' : '#fecaca'}`, boxShadow:'0 2px 8px rgba(0,0,0,0.04)', overflow:'hidden' }}>
+                            <div style={{ height:'3px', background: isPending ? '#f59e0b' : isApproved ? '#059669' : '#dc2626' }}/>
+                            <div style={{ padding:'20px 24px' }}>
+                              <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:'12px', marginBottom:'12px' }}>
+                                <div>
+                                  <div style={{ fontSize:'16px', fontWeight:'800', color:'#0f172a', marginBottom:'2px' }}>{s.service_name}</div>
+                                  <div style={{ fontSize:'12px', color:'#7c3aed', fontWeight:'700' }}>Category: {s.category_name}</div>
+                                </div>
+                                <Badge
+                                  label={s.status.charAt(0).toUpperCase() + s.status.slice(1)}
+                                  color={isPending ? '#d97706' : isApproved ? '#059669' : '#dc2626'}
+                                />
+                              </div>
+                              {s.description && <p style={{ fontSize:'13px', color:'#64748b', margin:'0 0 12px' }}>{s.description}</p>}
+                              <div style={{ fontSize:'12px', color:'#94a3b8', marginBottom: isPending ? '14px' : '0' }}>
+                                By <strong style={{ color:'#374151' }}>{s.suggested_by_name || 'Unknown'}</strong> ({s.suggested_by_role}) · {new Date(s.created_at).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' })}
+                              </div>
+                              {s.rejection_reason && (
+                                <div style={{ background:'#fef2f2', border:'1px solid #fecaca', borderRadius:'8px', padding:'10px 14px', fontSize:'12px', color:'#dc2626', marginBottom:'8px' }}>
+                                  Rejected: {s.rejection_reason}
+                                </div>
+                              )}
+                              {s.approved_service_name && (
+                                <div style={{ background:'#ecfdf5', border:'1px solid #a7f3d0', borderRadius:'8px', padding:'10px 14px', fontSize:'12px', color:'#059669' }}>
+                                  Added as service: {s.approved_service_name}
+                                </div>
+                              )}
+                              {isPending && (
+                                <div style={{ display:'flex', gap:'10px', marginTop:'4px' }}>
+                                  <button onClick={() => { setApproveForm({ base_price:'', duration_minutes:60 }); setApproveModal(s) }}
+                                    style={{ display:'flex', alignItems:'center', gap:'6px', padding:'9px 18px', background:'#ecfdf5', color:'#059669', border:'1.5px solid #a7f3d0', borderRadius:'9px', fontWeight:'700', fontSize:'13px', cursor:'pointer' }}>
+                                    <CheckCircle size={13}/> Approve
+                                  </button>
+                                  <button onClick={() => { setRejectSuggModal(s); setRejectSuggReason('') }}
+                                    style={{ display:'flex', alignItems:'center', gap:'6px', padding:'9px 18px', background:'#fef2f2', color:'#dc2626', border:'1.5px solid #fecaca', borderRadius:'9px', fontWeight:'700', fontSize:'13px', cursor:'pointer' }}>
+                                    <XCircle size={13}/> Reject
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </>
+              )}
             </>
           )}
 

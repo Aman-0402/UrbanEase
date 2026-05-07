@@ -6,8 +6,11 @@ from django.db.models import Count, Sum, Avg
 from django.db.models.functions import TruncDate
 from apps.users.models import User
 from apps.users.serializers import UserSerializer
-from apps.services.models import ProviderProfile, ProviderKYCDocument
-from apps.services.serializers import ProviderListSerializer, AdminKYCSerializer
+from apps.services.models import ProviderProfile, ProviderKYCDocument, Category, Service, ServiceSuggestion
+from apps.services.serializers import (
+    ProviderListSerializer, AdminKYCSerializer,
+    AdminCategorySerializer, AdminServiceSerializer, ServiceSuggestionSerializer,
+)
 from apps.bookings.models import Booking
 from apps.bookings.serializers import BookingListSerializer
 from .permissions import IsAdminUser
@@ -164,3 +167,101 @@ def admin_kyc_review(request, pk):
     kyc.reviewed_by = request.user
     kyc.save()
     return Response(AdminKYCSerializer(kyc).data)
+
+
+# ── Categories ───────────────────────────────────────────────────────────────
+
+class AdminCategoryListCreateView(generics.ListCreateAPIView):
+    queryset           = Category.objects.all()
+    serializer_class   = AdminCategorySerializer
+    permission_classes = (IsAdminUser,)
+    filter_backends    = (filters.SearchFilter, filters.OrderingFilter)
+    search_fields      = ('name',)
+    ordering_fields    = ('order', 'name')
+    ordering           = ('order', 'name')
+
+
+class AdminCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset           = Category.objects.all()
+    serializer_class   = AdminCategorySerializer
+    permission_classes = (IsAdminUser,)
+
+
+# ── Services ─────────────────────────────────────────────────────────────────
+
+class AdminServiceListCreateView(generics.ListCreateAPIView):
+    queryset           = Service.objects.select_related('category').all()
+    serializer_class   = AdminServiceSerializer
+    permission_classes = (IsAdminUser,)
+    filter_backends    = (DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter)
+    filterset_fields   = ('category', 'is_active')
+    search_fields      = ('name', 'category__name')
+    ordering_fields    = ('name', 'base_price', 'created_at')
+    ordering           = ('category__name', 'name')
+
+
+class AdminServiceDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset           = Service.objects.select_related('category').all()
+    serializer_class   = AdminServiceSerializer
+    permission_classes = (IsAdminUser,)
+
+
+# ── Suggestions ──────────────────────────────────────────────────────────────
+
+class AdminSuggestionListView(generics.ListAPIView):
+    serializer_class   = ServiceSuggestionSerializer
+    permission_classes = (IsAdminUser,)
+    filter_backends    = (DjangoFilterBackend, filters.OrderingFilter)
+    filterset_fields   = ('status',)
+    ordering_fields    = ('created_at',)
+    ordering           = ('-created_at',)
+
+    def get_queryset(self):
+        return ServiceSuggestion.objects.select_related('suggested_by', 'approved_service').all()
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAdminUser])
+def admin_review_suggestion(request, pk):
+    from django.utils import timezone as tz
+    suggestion = ServiceSuggestion.objects.filter(pk=pk).first()
+    if not suggestion:
+        return Response({'detail': 'Not found.'}, status=404)
+    if suggestion.status != ServiceSuggestion.PENDING:
+        return Response({'detail': 'Suggestion already reviewed.'}, status=400)
+
+    action = request.data.get('action')
+    if action not in ('approve', 'reject'):
+        return Response({'detail': 'action must be "approve" or "reject".'}, status=400)
+
+    if action == 'approve':
+        # Require price and duration
+        base_price = request.data.get('base_price')
+        duration   = request.data.get('duration_minutes', 60)
+        if not base_price:
+            return Response({'detail': 'base_price is required to approve.'}, status=400)
+
+        # Find or create the category
+        cat_name = suggestion.category_name.strip()
+        category, _ = Category.objects.get_or_create(
+            name__iexact=cat_name,
+            defaults={'name': cat_name},
+        )
+
+        service = Service.objects.create(
+            category=category,
+            name=suggestion.service_name,
+            description=suggestion.description,
+            base_price=base_price,
+            duration_minutes=int(duration),
+        )
+        suggestion.approved_service = service
+        suggestion.status = ServiceSuggestion.APPROVED
+    else:
+        suggestion.rejection_reason = request.data.get('rejection_reason', 'Not suitable at this time.')
+        suggestion.status = ServiceSuggestion.REJECTED
+
+    suggestion.reviewed_at = tz.now()
+    suggestion.reviewed_by = request.user
+    suggestion.save()
+    return Response(ServiceSuggestionSerializer(suggestion).data)

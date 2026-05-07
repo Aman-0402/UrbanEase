@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Service, ProviderProfile, ProviderService, ProviderKYCDocument
+from .models import Category, Service, ProviderProfile, ProviderService, ProviderKYCDocument, ServiceSuggestion
 from apps.users.serializers import UserSerializer
 
 
@@ -129,6 +129,57 @@ class KYCDocumentSerializer(serializers.ModelSerializer):
             'rejection_reason', 'submitted_at', 'reviewed_at',
         )
         read_only_fields = ('kyc_status', 'rejection_reason', 'submitted_at', 'reviewed_at')
+
+
+class AdminCategorySerializer(serializers.ModelSerializer):
+    service_count = serializers.IntegerField(source='services.count', read_only=True)
+
+    class Meta:
+        model  = Category
+        fields = ('id', 'name', 'slug', 'icon', 'description', 'is_active', 'order', 'service_count')
+        read_only_fields = ('slug', 'service_count')
+
+
+class AdminServiceSerializer(serializers.ModelSerializer):
+    category_name    = serializers.CharField(source='category.name', read_only=True)
+    duration_display = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = Service
+        fields = (
+            'id', 'name', 'slug', 'category', 'category_name',
+            'description', 'base_price', 'duration_minutes', 'duration_display',
+            'is_active', 'created_at',
+        )
+        read_only_fields = ('slug', 'category_name', 'duration_display', 'created_at')
+
+    def get_duration_display(self, obj):
+        h, m = divmod(obj.duration_minutes, 60)
+        if h and m:
+            return f'{h}h {m}m'
+        return f'{h}h' if h else f'{m}m'
+
+
+class ServiceSuggestionSerializer(serializers.ModelSerializer):
+    suggested_by_name = serializers.CharField(source='suggested_by.full_name', read_only=True)
+    suggested_by_role = serializers.CharField(source='suggested_by.role',      read_only=True)
+    approved_service_name = serializers.CharField(source='approved_service.name', read_only=True, default=None)
+
+    class Meta:
+        model  = ServiceSuggestion
+        fields = (
+            'id', 'service_name', 'category_name', 'description',
+            'status', 'rejection_reason',
+            'suggested_by_name', 'suggested_by_role',
+            'approved_service_name',
+            'created_at', 'reviewed_at',
+        )
+        read_only_fields = (
+            'status', 'rejection_reason',
+            'suggested_by_name', 'suggested_by_role',
+            'approved_service_name',
+            'created_at', 'reviewed_at',
+        )
 
 
 class AdminKYCSerializer(serializers.ModelSerializer):

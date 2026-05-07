@@ -4,11 +4,11 @@ from rest_framework import generics, filters, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Category, Service, ProviderProfile, ProviderKYCDocument
+from .models import Category, Service, ProviderProfile, ProviderKYCDocument, ServiceSuggestion
 from .serializers import (
     CategorySerializer, ServiceSerializer,
     ProviderListSerializer, ProviderDetailSerializer, ProviderUpdateSerializer,
-    KYCDocumentSerializer,
+    KYCDocumentSerializer, ServiceSuggestionSerializer,
 )
 from .filters import ProviderFilter
 
@@ -146,3 +146,21 @@ class MyKYCView(APIView):
             rejection_reason='',
         )
         return Response(KYCDocumentSerializer(kyc).data, status=status.HTTP_200_OK)
+
+
+class SuggestServiceView(generics.CreateAPIView):
+    """Any authenticated user can submit a service suggestion."""
+    serializer_class   = ServiceSuggestionSerializer
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def perform_create(self, serializer):
+        serializer.save(suggested_by=self.request.user)
+
+
+class MySuggestionsView(generics.ListAPIView):
+    """User sees their own suggestions."""
+    serializer_class   = ServiceSuggestionSerializer
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get_queryset(self):
+        return ServiceSuggestion.objects.filter(suggested_by=self.request.user)

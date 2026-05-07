@@ -6,7 +6,7 @@ import {
   CheckCircle, ChevronRight, TrendingUp, Bell, Settings, User,
   PlayCircle, XCircle, AlertCircle, ToggleLeft, ToggleRight, Edit3,
   Search, X, ShieldCheck, Upload, FileText, Camera, Clock3,
-  ArrowUp, ArrowDown, Minus,
+  ArrowUp, ArrowDown, Minus, Lightbulb,
 } from 'lucide-react'
 import Logo from '../components/layout/Logo'
 import useAuthStore from '../store/authStore'
@@ -16,7 +16,7 @@ import {
   getMyKYC, submitKYC, getMyEarnings,
 } from '../api/provider'
 import { respondNegotiation } from '../api/bookings'
-import { getServices } from '../api/services'
+import { getServices, suggestService } from '../api/services'
 
 const STATUS_META = {
   pending:     { label:'Pending',     color:'#f59e0b', bg:'#fefce8', border:'#fde68a' },
@@ -76,6 +76,10 @@ export default function ProviderDashboard() {
   const [earningsData,    setEarningsData]    = useState(null)
   const [earningsLoading, setEarningsLoading] = useState(false)
   const [earningsError,   setEarningsError]   = useState('')
+  const [suggestOpen,  setSuggestOpen]  = useState(false)
+  const [suggestForm,  setSuggestForm]  = useState({ service_name:'', category_name:'', description:'' })
+  const [suggestSaving,setSuggestSaving]= useState(false)
+  const [suggestDone,  setSuggestDone]  = useState(false)
 
   const fetchAll = useCallback(() => {
     setLoading(true)
@@ -152,9 +156,77 @@ export default function ProviderDashboard() {
 
   const pendingCount = bookings.filter(b => b.status === 'pending').length
 
+  async function handleSuggest(e) {
+    e.preventDefault()
+    setSuggestSaving(true)
+    try {
+      await suggestService(suggestForm)
+      setSuggestDone(true)
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to submit suggestion.')
+    } finally {
+      setSuggestSaving(false)
+    }
+  }
+
   return (
     <div style={{ minHeight:'100vh', background:'#f8fafc', fontFamily:'system-ui,-apple-system,sans-serif' }}>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+
+      {/* Suggest a Service modal */}
+      {suggestOpen && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'20px' }}
+          onClick={e => { if (e.target === e.currentTarget) { setSuggestOpen(false); setSuggestDone(false); setSuggestForm({ service_name:'', category_name:'', description:'' }) } }}>
+          <motion.div initial={{opacity:0,scale:0.9}} animate={{opacity:1,scale:1}}
+            style={{ background:'white', borderRadius:'24px', padding:'36px', maxWidth:'440px', width:'100%', boxShadow:'0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px' }}>
+              <h3 style={{ fontSize:'18px', fontWeight:'800', color:'#0f172a', margin:0 }}>Suggest a Service</h3>
+              <button onClick={() => { setSuggestOpen(false); setSuggestDone(false); setSuggestForm({ service_name:'', category_name:'', description:'' }) }}
+                style={{ background:'none', border:'none', cursor:'pointer', color:'#94a3b8', padding:'4px' }}>
+                <X size={20}/>
+              </button>
+            </div>
+            {suggestDone ? (
+              <div style={{ textAlign:'center', padding:'20px 0' }}>
+                <CheckCircle size={48} color="#059669" style={{ marginBottom:'12px' }}/>
+                <p style={{ fontSize:'15px', fontWeight:'700', color:'#0f172a', marginBottom:'6px' }}>Suggestion Submitted!</p>
+                <p style={{ fontSize:'13px', color:'#64748b' }}>Our team will review it and add it to the service list if approved.</p>
+                <button onClick={() => { setSuggestOpen(false); setSuggestDone(false); setSuggestForm({ service_name:'', category_name:'', description:'' }) }}
+                  style={{ marginTop:'20px', padding:'11px 28px', background:'linear-gradient(135deg,#7c3aed,#4338ca)', color:'white', border:'none', borderRadius:'12px', fontWeight:'700', fontSize:'14px', cursor:'pointer' }}>
+                  Done
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSuggest} style={{ display:'flex', flexDirection:'column', gap:'14px' }}>
+                <div>
+                  <label style={{ fontSize:'12px', fontWeight:'700', color:'#64748b', display:'block', marginBottom:'5px', textTransform:'uppercase' }}>Service Name *</label>
+                  <input required value={suggestForm.service_name} onChange={e => setSuggestForm(p => ({ ...p, service_name: e.target.value }))} placeholder="e.g. Sofa Deep Cleaning"
+                    style={{ width:'100%', padding:'11px 14px', border:'2px solid #e5e7eb', borderRadius:'12px', fontSize:'14px', outline:'none', boxSizing:'border-box' }}
+                    onFocus={e => e.target.style.borderColor='#7c3aed'} onBlur={e => e.target.style.borderColor='#e5e7eb'}/>
+                </div>
+                <div>
+                  <label style={{ fontSize:'12px', fontWeight:'700', color:'#64748b', display:'block', marginBottom:'5px', textTransform:'uppercase' }}>Category *</label>
+                  <input required value={suggestForm.category_name} onChange={e => setSuggestForm(p => ({ ...p, category_name: e.target.value }))} placeholder="e.g. Cleaning"
+                    style={{ width:'100%', padding:'11px 14px', border:'2px solid #e5e7eb', borderRadius:'12px', fontSize:'14px', outline:'none', boxSizing:'border-box' }}
+                    onFocus={e => e.target.style.borderColor='#7c3aed'} onBlur={e => e.target.style.borderColor='#e5e7eb'}/>
+                </div>
+                <div>
+                  <label style={{ fontSize:'12px', fontWeight:'700', color:'#64748b', display:'block', marginBottom:'5px', textTransform:'uppercase' }}>Description</label>
+                  <textarea rows={3} value={suggestForm.description} onChange={e => setSuggestForm(p => ({ ...p, description: e.target.value }))} placeholder="Briefly describe what this service involves…"
+                    style={{ width:'100%', padding:'11px 14px', border:'2px solid #e5e7eb', borderRadius:'12px', fontSize:'14px', outline:'none', boxSizing:'border-box', resize:'vertical', fontFamily:'inherit' }}
+                    onFocus={e => e.target.style.borderColor='#7c3aed'} onBlur={e => e.target.style.borderColor='#e5e7eb'}/>
+                </div>
+                <div style={{ display:'flex', gap:'10px', marginTop:'4px' }}>
+                  <button type="button" onClick={() => setSuggestOpen(false)} style={{ flex:1, padding:'12px', border:'2px solid #e5e7eb', borderRadius:'12px', fontWeight:'700', fontSize:'14px', color:'#374151', background:'white', cursor:'pointer' }}>Cancel</button>
+                  <button type="submit" disabled={suggestSaving} style={{ flex:1, padding:'12px', background:'linear-gradient(135deg,#7c3aed,#4338ca)', color:'white', border:'none', borderRadius:'12px', fontWeight:'700', fontSize:'14px', cursor: suggestSaving ? 'wait' : 'pointer', opacity: suggestSaving ? 0.75 : 1 }}>
+                    {suggestSaving ? 'Submitting…' : 'Submit'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </motion.div>
+        </div>
+      )}
 
       {/* Sidebar + main layout */}
       <div style={{ display:'flex', minHeight:'100vh' }}>
@@ -254,6 +326,12 @@ export default function ProviderDashboard() {
                     style={{ display:'flex', alignItems:'center', gap:'5px', padding:'6px 14px', background:'#f5f3ff', border:'1.5px solid #ddd6fe', borderRadius:'10px', color:'#7c3aed', fontWeight:'700', fontSize:'12px', cursor: earningsLoading ? 'wait' : 'pointer', flexShrink:0 }}>
                     <TrendingUp size={12} style={{ animation: earningsLoading ? 'spin 0.8s linear infinite' : 'none' }}/>
                     Refresh
+                  </button>
+                )}
+                {activeSection === 'bookings' && (
+                  <button onClick={() => { setSuggestOpen(true); setSuggestDone(false) }}
+                    style={{ display:'flex', alignItems:'center', gap:'5px', padding:'6px 14px', background:'#f5f3ff', border:'1.5px solid #ddd6fe', borderRadius:'10px', color:'#7c3aed', fontWeight:'700', fontSize:'12px', cursor:'pointer', flexShrink:0 }}>
+                    <Lightbulb size={12}/> Suggest a Service
                   </button>
                 )}
               </div>

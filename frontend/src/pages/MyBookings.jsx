@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Calendar, Clock, MapPin, Star, X, CheckCircle, AlertCircle, ArrowRight, RefreshCw, RotateCcw } from 'lucide-react'
+import { Calendar, Clock, MapPin, Star, X, CheckCircle, AlertCircle, ArrowRight, RefreshCw, RotateCcw, Lightbulb } from 'lucide-react'
 import { getMyBookings, cancelBooking, submitReview, getBookingReview } from '../api/bookings'
 import { getPaymentStatus } from '../api/payments'
+import { suggestService } from '../api/services'
 import RazorpayButton from '../components/RazorpayButton'
 import Navbar from '../components/layout/Navbar'
 import useAuthStore from '../store/authStore'
@@ -103,6 +104,10 @@ export default function MyBookings() {
   const [paid,       setPaid]       = useState(new Set())
   const [cancelling, setCancelling] = useState(null)
   const [payingId,   setPayingId]   = useState(null)
+  const [suggestOpen,  setSuggestOpen]  = useState(false)
+  const [suggestForm,  setSuggestForm]  = useState({ service_name:'', category_name:'', description:'' })
+  const [suggestSaving,setSuggestSaving]= useState(false)
+  const [suggestDone,  setSuggestDone]  = useState(false)
 
   function fetchBookings(status = '') {
     setLoading(true)
@@ -140,9 +145,77 @@ export default function MyBookings() {
 
   const statusMeta = (s) => STATUS_META[s] || STATUS_META.pending
 
+  async function handleSuggest(e) {
+    e.preventDefault()
+    setSuggestSaving(true)
+    try {
+      await suggestService(suggestForm)
+      setSuggestDone(true)
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to submit suggestion.')
+    } finally {
+      setSuggestSaving(false)
+    }
+  }
+
   return (
     <div style={{ minHeight:'100vh', background:'#f8fafc', fontFamily:'system-ui,-apple-system,sans-serif' }}>
       <Navbar />
+
+      {/* Suggest a Service modal */}
+      {suggestOpen && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000, padding:'20px' }}
+          onClick={e => { if (e.target === e.currentTarget) { setSuggestOpen(false); setSuggestDone(false); setSuggestForm({ service_name:'', category_name:'', description:'' }) } }}>
+          <motion.div initial={{opacity:0,scale:0.9}} animate={{opacity:1,scale:1}}
+            style={{ background:'white', borderRadius:'24px', padding:'36px', maxWidth:'440px', width:'100%', boxShadow:'0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px' }}>
+              <h3 style={{ fontSize:'18px', fontWeight:'800', color:'#0f172a', margin:0 }}>Suggest a Service</h3>
+              <button onClick={() => { setSuggestOpen(false); setSuggestDone(false); setSuggestForm({ service_name:'', category_name:'', description:'' }) }}
+                style={{ background:'none', border:'none', cursor:'pointer', color:'#94a3b8', padding:'4px' }}>
+                <X size={20}/>
+              </button>
+            </div>
+            {suggestDone ? (
+              <div style={{ textAlign:'center', padding:'20px 0' }}>
+                <CheckCircle size={48} color="#059669" style={{ marginBottom:'12px' }}/>
+                <p style={{ fontSize:'15px', fontWeight:'700', color:'#0f172a', marginBottom:'6px' }}>Suggestion Submitted!</p>
+                <p style={{ fontSize:'13px', color:'#64748b' }}>Our team will review it and add it to the service list if approved.</p>
+                <button onClick={() => { setSuggestOpen(false); setSuggestDone(false); setSuggestForm({ service_name:'', category_name:'', description:'' }) }}
+                  style={{ marginTop:'20px', padding:'11px 28px', background:'linear-gradient(135deg,#7c3aed,#4338ca)', color:'white', border:'none', borderRadius:'12px', fontWeight:'700', fontSize:'14px', cursor:'pointer' }}>
+                  Done
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSuggest} style={{ display:'flex', flexDirection:'column', gap:'14px' }}>
+                <div>
+                  <label style={{ fontSize:'12px', fontWeight:'700', color:'#64748b', display:'block', marginBottom:'5px', textTransform:'uppercase' }}>Service Name *</label>
+                  <input required value={suggestForm.service_name} onChange={e => setSuggestForm(p => ({ ...p, service_name: e.target.value }))} placeholder="e.g. Sofa Deep Cleaning"
+                    style={{ width:'100%', padding:'11px 14px', border:'2px solid #e5e7eb', borderRadius:'12px', fontSize:'14px', outline:'none', boxSizing:'border-box' }}
+                    onFocus={e => e.target.style.borderColor='#7c3aed'} onBlur={e => e.target.style.borderColor='#e5e7eb'}/>
+                </div>
+                <div>
+                  <label style={{ fontSize:'12px', fontWeight:'700', color:'#64748b', display:'block', marginBottom:'5px', textTransform:'uppercase' }}>Category *</label>
+                  <input required value={suggestForm.category_name} onChange={e => setSuggestForm(p => ({ ...p, category_name: e.target.value }))} placeholder="e.g. Cleaning"
+                    style={{ width:'100%', padding:'11px 14px', border:'2px solid #e5e7eb', borderRadius:'12px', fontSize:'14px', outline:'none', boxSizing:'border-box' }}
+                    onFocus={e => e.target.style.borderColor='#7c3aed'} onBlur={e => e.target.style.borderColor='#e5e7eb'}/>
+                </div>
+                <div>
+                  <label style={{ fontSize:'12px', fontWeight:'700', color:'#64748b', display:'block', marginBottom:'5px', textTransform:'uppercase' }}>Description</label>
+                  <textarea rows={3} value={suggestForm.description} onChange={e => setSuggestForm(p => ({ ...p, description: e.target.value }))} placeholder="Briefly describe what this service involves…"
+                    style={{ width:'100%', padding:'11px 14px', border:'2px solid #e5e7eb', borderRadius:'12px', fontSize:'14px', outline:'none', boxSizing:'border-box', resize:'vertical', fontFamily:'inherit' }}
+                    onFocus={e => e.target.style.borderColor='#7c3aed'} onBlur={e => e.target.style.borderColor='#e5e7eb'}/>
+                </div>
+                <div style={{ display:'flex', gap:'10px', marginTop:'4px' }}>
+                  <button type="button" onClick={() => setSuggestOpen(false)} style={{ flex:1, padding:'12px', border:'2px solid #e5e7eb', borderRadius:'12px', fontWeight:'700', fontSize:'14px', color:'#374151', background:'white', cursor:'pointer' }}>Cancel</button>
+                  <button type="submit" disabled={suggestSaving} style={{ flex:1, padding:'12px', background:'linear-gradient(135deg,#7c3aed,#4338ca)', color:'white', border:'none', borderRadius:'12px', fontWeight:'700', fontSize:'14px', cursor: suggestSaving ? 'wait' : 'pointer', opacity: suggestSaving ? 0.75 : 1 }}>
+                    {suggestSaving ? 'Submitting…' : 'Submit'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </motion.div>
+        </div>
+      )}
 
       {/* Header */}
       <div style={{ background:'linear-gradient(135deg,#7c3aed 0%,#4338ca 100%)', padding:'40px 40px 36px' }}>
@@ -152,13 +225,21 @@ export default function MyBookings() {
               <h1 style={{ fontSize:'clamp(22px,3vw,32px)', fontWeight:'900', color:'white', marginBottom:'6px', letterSpacing:'-0.4px' }}>My Bookings</h1>
               <p style={{ color:'rgba(255,255,255,0.7)', fontSize:'15px' }}>Track and manage your service bookings</p>
             </div>
-            <button onClick={() => fetchBookings(activeTab)} disabled={loading}
-              style={{ display:'flex', alignItems:'center', gap:'6px', padding:'10px 18px', background:'rgba(255,255,255,0.12)', border:'1.5px solid rgba(255,255,255,0.25)', borderRadius:'12px', color:'white', fontWeight:'700', fontSize:'13px', cursor: loading ? 'wait' : 'pointer', transition:'all 0.2s' }}
-              onMouseOver={e => e.currentTarget.style.background='rgba(255,255,255,0.2)'}
-              onMouseOut={e => e.currentTarget.style.background='rgba(255,255,255,0.12)'}>
-              <RotateCcw size={14} style={{ animation: loading ? 'spin 0.8s linear infinite' : 'none' }}/>
-              Refresh
-            </button>
+            <div style={{ display:'flex', gap:'10px' }}>
+              <button onClick={() => { setSuggestOpen(true); setSuggestDone(false) }}
+                style={{ display:'flex', alignItems:'center', gap:'6px', padding:'10px 18px', background:'rgba(255,255,255,0.12)', border:'1.5px solid rgba(255,255,255,0.25)', borderRadius:'12px', color:'white', fontWeight:'700', fontSize:'13px', cursor:'pointer', transition:'all 0.2s' }}
+                onMouseOver={e => e.currentTarget.style.background='rgba(255,255,255,0.2)'}
+                onMouseOut={e => e.currentTarget.style.background='rgba(255,255,255,0.12)'}>
+                <Lightbulb size={14}/> Suggest a Service
+              </button>
+              <button onClick={() => fetchBookings(activeTab)} disabled={loading}
+                style={{ display:'flex', alignItems:'center', gap:'6px', padding:'10px 18px', background:'rgba(255,255,255,0.12)', border:'1.5px solid rgba(255,255,255,0.25)', borderRadius:'12px', color:'white', fontWeight:'700', fontSize:'13px', cursor: loading ? 'wait' : 'pointer', transition:'all 0.2s' }}
+                onMouseOver={e => e.currentTarget.style.background='rgba(255,255,255,0.2)'}
+                onMouseOut={e => e.currentTarget.style.background='rgba(255,255,255,0.12)'}>
+                <RotateCcw size={14} style={{ animation: loading ? 'spin 0.8s linear infinite' : 'none' }}/>
+                Refresh
+              </button>
+            </div>
           </div>
           <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>

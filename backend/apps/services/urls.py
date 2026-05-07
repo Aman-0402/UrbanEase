@@ -14,4 +14,8 @@ urlpatterns = [
     path('providers/<int:pk>/',      views.ProviderDetailView.as_view(),    name='provider-detail'),
     path('providers/me/',            views.MyProviderProfileView.as_view(), name='provider-me'),
     path('providers/kyc/',           views.MyKYCView.as_view(),             name='provider-kyc'),
+
+    # Service suggestions
+    path('suggestions/',             views.SuggestServiceView.as_view(),   name='suggestion-create'),
+    path('suggestions/mine/',        views.MySuggestionsView.as_view(),    name='suggestion-mine'),
 ]

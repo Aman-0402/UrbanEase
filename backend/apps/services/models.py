@@ -87,6 +87,37 @@ class ProviderService(models.Model):
         return f'{self.provider} — {self.service}'
 
 
+class ServiceSuggestion(models.Model):
+    PENDING  = 'pending'
+    APPROVED = 'approved'
+    REJECTED = 'rejected'
+    STATUS_CHOICES = [
+        (PENDING,  'Pending'),
+        (APPROVED, 'Approved'),
+        (REJECTED, 'Rejected'),
+    ]
+
+    suggested_by      = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='suggestions')
+    service_name      = models.CharField(max_length=200)
+    category_name     = models.CharField(max_length=100)
+    description       = models.TextField(blank=True)
+    status            = models.CharField(max_length=10, choices=STATUS_CHOICES, default=PENDING)
+    rejection_reason  = models.TextField(blank=True)
+    approved_service  = models.ForeignKey(Service, null=True, blank=True, on_delete=models.SET_NULL, related_name='from_suggestion')
+    created_at        = models.DateTimeField(auto_now_add=True)
+    reviewed_at       = models.DateTimeField(null=True, blank=True)
+    reviewed_by       = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='reviewed_suggestions'
+    )
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.service_name} ({self.status})'
+
+
 class ProviderKYCDocument(models.Model):
     AADHAAR         = 'aadhaar'
     PAN             = 'pan'
