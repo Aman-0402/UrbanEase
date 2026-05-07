@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft, Calendar, Clock, MapPin, IndianRupee, CheckCircle,
-  AlertCircle, Star, CreditCard, XCircle, User, Briefcase,
+  AlertCircle, Star, CreditCard, XCircle, User, Briefcase, RefreshCw,
 } from 'lucide-react'
 import { getBookingDetail, cancelBooking, submitReview, getBookingReview } from '../api/bookings'
 import { getPaymentStatus } from '../api/payments'
@@ -287,6 +287,16 @@ export default function BookingDetail() {
                 <Star size={15}/> Leave a Review
               </button>
             )}
+            {booking.status === 'completed' && (
+              <Link
+                to={`/book/${booking.provider.id}?service=${booking.service.id}`}
+                state={{ rebook: true, prefill: { address: booking.address, city: booking.city, pincode: booking.pincode, notes: booking.notes } }}
+                style={{ width:'100%', padding:'12px', background:'#faf5ff', color:'#7c3aed', border:'2px solid #ddd6fe', borderRadius:'12px', fontWeight:'800', fontSize:'14px', cursor:'pointer', marginBottom:'10px', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px', textDecoration:'none', transition:'all 0.2s' }}
+                onMouseOver={e=>e.currentTarget.style.background='#ede9fe'}
+                onMouseOut={e=>e.currentTarget.style.background='#faf5ff'}>
+                <RefreshCw size={15}/> Book Again
+              </Link>
+            )}
             {canCancel && (
               <button onClick={handleCancel} disabled={cancelling}
                 style={{ width:'100%', padding:'11px', background:'white', color:'#dc2626', border:'2px solid #fecaca', borderRadius:'12px', fontWeight:'700', fontSize:'13px', cursor:cancelling?'wait':'pointer', transition:'all 0.2s' }}
@@ -296,7 +306,7 @@ export default function BookingDetail() {
                 {cancelling ? 'Cancelling…' : 'Cancel Booking'}
               </button>
             )}
-            {!canReview && !canCancel && (
+            {!canReview && !canCancel && booking.status !== 'completed' && (
               <p style={{ fontSize:'13px', color:'#94a3b8', textAlign:'center', margin:0 }}>No actions available</p>
             )}
           </Card>

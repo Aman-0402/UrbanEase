@@ -53,7 +53,9 @@ class BookingCreateSerializer(serializers.ModelSerializer):
 class BookingListSerializer(serializers.ModelSerializer):
     service_name     = serializers.CharField(source='service.name', read_only=True)
     service_icon     = serializers.CharField(source='service.category.icon', read_only=True)
+    service_id       = serializers.IntegerField(source='service.id', read_only=True)
     provider_name    = serializers.SerializerMethodField()
+    provider_id      = serializers.IntegerField(source='provider.id', read_only=True)
     customer_name    = serializers.SerializerMethodField()
     status_display   = serializers.CharField(source='get_status_display', read_only=True)
     scheduled_time   = serializers.TimeField(format='%H:%M')
@@ -61,9 +63,10 @@ class BookingListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Booking
         fields = (
-            'id', 'service_name', 'service_icon', 'provider_name', 'customer_name',
+            'id', 'service_name', 'service_icon', 'service_id',
+            'provider_name', 'provider_id', 'customer_name',
             'status', 'status_display', 'scheduled_date', 'scheduled_time',
-            'total_price', 'city', 'created_at',
+            'total_price', 'address', 'city', 'pincode', 'created_at',
         )
 
     def get_provider_name(self, obj):

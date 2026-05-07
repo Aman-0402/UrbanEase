@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Calendar, Clock, MapPin, Star, X, CheckCircle, AlertCircle, ArrowRight, Zap } from 'lucide-react'
+import { Calendar, Clock, MapPin, Star, X, CheckCircle, AlertCircle, ArrowRight, RefreshCw } from 'lucide-react'
 import { getMyBookings, cancelBooking, submitReview, getBookingReview } from '../api/bookings'
 import { getPaymentStatus } from '../api/payments'
 import RazorpayButton from '../components/RazorpayButton'
@@ -268,6 +268,16 @@ export default function MyBookings() {
                               onMouseOut={e=>{e.currentTarget.style.background='#fef2f2'}}>
                               <X size={13}/> {cancelling === b.id ? 'Cancelling…' : 'Cancel'}
                             </button>
+                          )}
+                          {b.status === 'completed' && b.provider_id && (
+                            <Link
+                              to={`/book/${b.provider_id}?service=${b.service_id}`}
+                              state={{ rebook: true, prefill: { address: b.address, city: b.city, pincode: b.pincode } }}
+                              style={{ display:'flex', alignItems:'center', gap:'6px', padding:'9px 18px', background:'#faf5ff', color:'#7c3aed', border:'1.5px solid #ddd6fe', borderRadius:'10px', fontWeight:'700', fontSize:'13px', textDecoration:'none', transition:'all 0.2s' }}
+                              onMouseOver={e=>e.currentTarget.style.background='#ede9fe'}
+                              onMouseOut={e=>e.currentTarget.style.background='#faf5ff'}>
+                              <RefreshCw size={13}/> Book Again
+                            </Link>
                           )}
                         </div>
                       </div>

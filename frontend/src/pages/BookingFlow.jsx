@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useSearchParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Calendar, Clock, MapPin, IndianRupee, CheckCircle, AlertCircle } from 'lucide-react'
 import { getProviderById, getServices } from '../api/services'
@@ -14,27 +14,30 @@ const inputStyle = (focused) => ({
 })
 
 export default function BookingFlow() {
-  const { providerId } = useParams()
+  const { providerId }  = useParams()
   const [searchParams]  = useSearchParams()
   const serviceId       = searchParams.get('service')
   const navigate        = useNavigate()
+  const location        = useLocation()
+  const prefill         = location.state?.prefill || {}
+  const isRebook        = !!location.state?.rebook
 
   const [provider, setProvider] = useState(null)
   const [services, setServices] = useState([])
   const [loading,  setLoading]  = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error,    setError]    = useState('')
-  const [booking,  setBooking]  = useState(null)  // created booking object
+  const [booking,  setBooking]  = useState(null)
   const [focusedField, setFocused] = useState('')
 
   const [form, setForm] = useState({
     service:        serviceId || '',
     scheduled_date: '',
     scheduled_time: '',
-    address:        '',
-    city:           '',
-    pincode:        '',
-    notes:          '',
+    address:        prefill.address || '',
+    city:           prefill.city    || '',
+    pincode:        prefill.pincode || '',
+    notes:          prefill.notes   || '',
   })
 
   useEffect(() => {
@@ -164,7 +167,18 @@ export default function BookingFlow() {
           <ArrowLeft size={15}/> Back
         </Link>
 
-        <h1 style={{ fontSize:'26px', fontWeight:'900', color:'#0f172a', marginBottom:'6px', letterSpacing:'-0.4px' }}>Book a Service</h1>
+        {isRebook && (
+          <div style={{ display:'flex', alignItems:'center', gap:'10px', padding:'14px 18px', background:'#f5f3ff', border:'2px solid #ddd6fe', borderRadius:'14px', marginBottom:'24px' }}>
+            <span style={{ fontSize:'20px' }}>🔁</span>
+            <div>
+              <div style={{ fontSize:'13px', fontWeight:'800', color:'#6d28d9' }}>Rebooking</div>
+              <div style={{ fontSize:'12px', color:'#8b5cf6' }}>Your previous address details have been pre-filled — just pick a new date &amp; time.</div>
+            </div>
+          </div>
+        )}
+        <h1 style={{ fontSize:'26px', fontWeight:'900', color:'#0f172a', marginBottom:'6px', letterSpacing:'-0.4px' }}>
+          {isRebook ? 'Book Again' : 'Book a Service'}
+        </h1>
         <p style={{ color:'#64748b', fontSize:'14px', marginBottom:'36px' }}>Fill in the details to confirm your booking</p>
 
         <div style={{ display:'grid', gridTemplateColumns:'1fr 340px', gap:'28px', alignItems:'start' }}>
